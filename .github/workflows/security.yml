@@ -1,0 +1,529 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security checks daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Dependency vulnerability scanning
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: audit-cache-v1
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --locked
+
+    - name: Run security audit
+      run: |
+        echo "🔍 Running security audit..."
+        cargo audit --json > audit_results.json || true
+        
+        # Display human-readable results
+        cargo audit
+        
+        # Check for vulnerabilities
+        VULNS=$(jq '.vulnerabilities.count // 0' audit_results.json)
+        WARNINGS=$(jq '.warnings | length' audit_results.json)
+        
+        echo "Found $VULNS vulnerabilities and $WARNINGS warnings"
+        
+        if [[ $VULNS -gt 0 ]]; then
+          echo "❌ Security vulnerabilities found!"
+          jq '.vulnerabilities.list[]' audit_results.json
+          exit 1
+        fi
+        
+        if [[ $WARNINGS -gt 5 ]]; then
+          echo "⚠️  High number of warnings detected"
+        fi
+        
+        echo "✅ Security audit passed"
+
+    - name: Upload audit results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-audit-results
+        path: audit_results.json
+        retention-days: 30
+
+  # License compliance checking
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-license
+      run: cargo install cargo-license --locked
+
+    - name: Check licenses
+      run: |
+        echo "📜 Checking dependency licenses..."
+        
+        # Generate license report
+        cargo license --json > licenses.json
+        
+        # Check for forbidden licenses
+        FORBIDDEN_LICENSES=("GPL-3.0" "AGPL-3.0" "SSPL-1.0")
+        
+        for license in "${FORBIDDEN_LICENSES[@]}"; do
+          if jq -e ".[] | select(.license == \"$license\")" licenses.json > /dev/null; then
+            echo "❌ Forbidden license found: $license"
+            jq ".[] | select(.license == \"$license\")" licenses.json
+            exit 1
+          fi
+        done
+        
+        echo "✅ All licenses are compatible"
+        
+        # Generate human-readable report
+        echo "## License Report" > license_report.md
+        echo "" >> license_report.md
+        cargo license --authors --do-not-bundle --avoid-dev-deps >> license_report.md
+
+    - name: Upload license report
+      uses: actions/upload-artifact@v4
+      with:
+        name: license-report
+        path: |
+          licenses.json
+          license_report.md
+        retention-days: 30
+
+  # Static analysis with Clippy security lints
+  static-analysis:
+    name: Static Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Run security-focused Clippy lints
+      run: |
+        echo "🔍 Running security-focused static analysis..."
+        
+        cargo clippy --all-features --all-targets -- \
+          -W clippy::suspicious \
+          -W clippy::perf \
+          -W clippy::cargo \
+          -W clippy::nursery \
+          -D clippy::mem_forget \
+          -D clippy::manual_memcpy \
+          -D clippy::cast_ptr_alignment \
+          -D clippy::uninit_assumed_init \
+          -D clippy::transmute_ptr_to_ptr \
+          -D clippy::integer_overflow \
+          -D clippy::panic \
+          -D clippy::unwrap_used \
+          -D clippy::expect_used \
+          -A clippy::missing_errors_doc \
+          -A clippy::missing_panics_doc \
+          2>&1 | tee clippy_security.log
+        
+        echo "✅ Static analysis completed"
+
+    - name: Upload analysis results
+      uses: actions/upload-artifact@v4
+      with:
+        name: static-analysis-results
+        path: clippy_security.log
+        retention-days: 7
+
+  # Check for known vulnerable patterns
+  vulnerability-patterns:
+    name: Vulnerability Pattern Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Scan for common vulnerability patterns
+      run: |
+        echo "🔍 Scanning for vulnerability patterns..."
+        
+        # Create vulnerability patterns file
+        cat > vuln_patterns.txt << 'EOF'
+        # Common Rust vulnerability patterns
+        unsafe\s*{[^}]*transmute
+        unsafe\s*{[^}]*from_raw
+        std::mem::uninitialized
+        std::mem::zeroed
+        \.unwrap\(\)
+        \.expect\(
+        panic!\(
+        todo!\(
+        unimplemented!\(
+        unreachable!\(
+        std::process::Command::new.*shell
+        std::fs::remove_.*
+        std::fs::create_dir_all
+        deserialize.*untrusted
+        serde.*deserialize.*input
+        EOF
+        
+        # Scan source files
+        echo "## Vulnerability Pattern Scan Results" > vuln_scan.md
+        echo "" >> vuln_scan.md
+        
+        PATTERNS_FOUND=0
+        
+        while IFS= read -r pattern; do
+          # Skip comments and empty lines
+          [[ "$pattern" =~ ^#.*$ ]] && continue
+          [[ -z "$pattern" ]] && continue
+          
+          echo "Checking pattern: $pattern"
+          
+          if grep -r -n --include="*.rs" -E "$pattern" crates/ 2>/dev/null; then
+            echo "### Pattern: \`$pattern\`" >> vuln_scan.md
+            echo '```' >> vuln_scan.md
+            grep -r -n --include="*.rs" -E "$pattern" crates/ >> vuln_scan.md 2>/dev/null || true
+            echo '```' >> vuln_scan.md
+            echo "" >> vuln_scan.md
+            ((PATTERNS_FOUND++))
+          fi
+        done < vuln_patterns.txt
+        
+        if [[ $PATTERNS_FOUND -gt 0 ]]; then
+          echo "⚠️  Found $PATTERNS_FOUND potentially vulnerable patterns"
+          echo "Review the patterns and ensure they are used safely"
+        else
+          echo "✅ No concerning patterns found"
+          echo "No potentially vulnerable patterns detected." >> vuln_scan.md
+        fi
+
+    - name: Upload vulnerability scan results
+      uses: actions/upload-artifact@v4
+      with:
+        name: vulnerability-patterns
+        path: vuln_scan.md
+        retention-days: 30
+
+  # Supply chain security
+  supply-chain:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-deny
+      run: cargo install cargo-deny --locked
+
+    - name: Create cargo-deny configuration
+      run: |
+        cat > deny.toml << 'EOF'
+        # cargo-deny configuration for supply chain security
+        
+        [licenses]
+        # List of explicitly allowed licenses
+        allow = [
+          "MIT",
+          "Apache-2.0",
+          "Apache-2.0 WITH LLVM-exception",
+          "BSD-2-Clause",
+          "BSD-3-Clause",
+          "ISC",
+          "Unicode-DFS-2016",
+          "CC0-1.0",
+        ]
+        
+        # List of explicitly disallowed licenses
+        deny = [
+          "GPL-2.0",
+          "GPL-3.0",
+          "AGPL-1.0",
+          "AGPL-3.0",
+          "SSPL-1.0",
+        ]
+        
+        # Lint level for when multiple versions of the same project are detected
+        multiple-versions = "warn"
+        
+        [bans]
+        # Lint level for when a crate version requirement is `*`
+        wildcards = "deny"
+        
+        # The graph links to check for multiple versions
+        multiple-versions = "warn"
+        
+        # The confidence threshold for detecting a security vulnerability
+        security-vulnerabilities = "deny"
+        
+        [advisories]
+        # The path where the advisory database is cloned/fetched into
+        db-path = "~/.cargo/advisory-db"
+        
+        # The url(s) of the advisory databases to use
+        db-urls = ["https://github.com/rustsec/advisory-db"]
+        
+        # The lint level for security vulnerabilities
+        vulnerability = "deny"
+        
+        # The lint level for unmaintained crates
+        unmaintained = "warn"
+        
+        # The lint level for crates that have been yanked from their source registry
+        yanked = "deny"
+        
+        # The lint level for crates with security notices
+        notice = "warn"
+        
+        [sources]
+        # Lint level for what to happen when a crate from a crate registry that is not in the allow list is encountered
+        unknown-registry = "warn"
+        
+        # Lint level for what to happen when a crate from a git repository that is not in the allow list is encountered
+        unknown-git = "warn"
+        
+        allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+        allow-git = []
+        EOF
+
+    - name: Run supply chain checks
+      run: |
+        echo "🔍 Running supply chain security checks..."
+        
+        # Run all cargo-deny checks
+        cargo deny --log-level info check all 2>&1 | tee deny_results.log
+        
+        echo "✅ Supply chain security check completed"
+
+    - name: Upload supply chain results
+      uses: actions/upload-artifact@v4
+      with:
+        name: supply-chain-results
+        path: |
+          deny.toml
+          deny_results.log
+        retention-days: 30
+
+  # Secrets scanning
+  secrets-scan:
+    name: Secrets Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run TruffleHog OSS
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+    - name: Custom secrets patterns scan
+      run: |
+        echo "🔍 Scanning for custom secret patterns..."
+        
+        # Define secret patterns
+        PATTERNS=(
+          "password\s*=\s*['\"][^'\"]{8,}['\"]"
+          "secret\s*=\s*['\"][^'\"]{16,}['\"]"
+          "token\s*=\s*['\"][^'\"]{20,}['\"]"
+          "api_key\s*=\s*['\"][^'\"]{16,}['\"]"
+          "private_key\s*=\s*['\"]-----BEGIN"
+          "sk-[a-zA-Z0-9]{32,}"
+          "ghp_[a-zA-Z0-9]{36}"
+          "gho_[a-zA-Z0-9]{36}"
+          "github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}"
+        )
+        
+        SECRETS_FOUND=0
+        
+        for pattern in "${PATTERNS[@]}"; do
+          if grep -r -n --include="*.rs" --include="*.toml" --include="*.yml" --include="*.yaml" -E "$pattern" . 2>/dev/null; then
+            echo "⚠️  Potential secret found with pattern: $pattern"
+            ((SECRETS_FOUND++))
+          fi
+        done
+        
+        if [[ $SECRETS_FOUND -gt 0 ]]; then
+          echo "❌ Found $SECRETS_FOUND potential secrets"
+          exit 1
+        else
+          echo "✅ No secrets detected"
+        fi
+
+  # Dependency update checker
+  dependency-updates:
+    name: Dependency Updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-outdated
+      run: cargo install cargo-outdated --locked
+
+    - name: Check for outdated dependencies
+      run: |
+        echo "📦 Checking for outdated dependencies..."
+        
+        cargo outdated --root-deps-only --format json > outdated.json
+        
+        # Parse and display results
+        if [[ $(jq '.dependencies | length' outdated.json) -gt 0 ]]; then
+          echo "📊 Outdated dependencies found:"
+          cargo outdated --root-deps-only
+          
+          # Create update report
+          echo "# Dependency Update Report" > update_report.md
+          echo "" >> update_report.md
+          echo "Generated on: $(date)" >> update_report.md
+          echo "" >> update_report.md
+          echo "## Outdated Dependencies" >> update_report.md
+          echo '```' >> update_report.md
+          cargo outdated --root-deps-only >> update_report.md
+          echo '```' >> update_report.md
+          
+          # Check for security updates
+          echo "" >> update_report.md
+          echo "## Security Impact" >> update_report.md
+          echo "Run \`cargo audit\` to check if any outdated dependencies have known vulnerabilities." >> update_report.md
+        else
+          echo "✅ All dependencies are up to date"
+          echo "All dependencies are up to date." > update_report.md
+        fi
+
+    - name: Upload dependency report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-updates
+        path: |
+          outdated.json
+          update_report.md
+        retention-days: 7
+
+  # Security summary
+  security-summary:
+    name: Security Summary
+    if: always()
+    needs: [audit, license-check, static-analysis, vulnerability-patterns, supply-chain, secrets-scan]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create security summary
+      run: |
+        echo "# 🔒 Security Assessment Summary" > security_summary.md
+        echo "" >> security_summary.md
+        echo "**Assessment Date:** $(date -u)" >> security_summary.md
+        echo "**Commit:** ${{ github.sha }}" >> security_summary.md
+        echo "" >> security_summary.md
+        
+        echo "## 📊 Check Results" >> security_summary.md
+        echo "" >> security_summary.md
+        echo "| Check | Status |" >> security_summary.md
+        echo "|-------|--------|" >> security_summary.md
+        echo "| Dependency Audit | ${{ needs.audit.result }} |" >> security_summary.md
+        echo "| License Compliance | ${{ needs.license-check.result }} |" >> security_summary.md
+        echo "| Static Analysis | ${{ needs.static-analysis.result }} |" >> security_summary.md
+        echo "| Vulnerability Patterns | ${{ needs.vulnerability-patterns.result }} |" >> security_summary.md
+        echo "| Supply Chain | ${{ needs.supply-chain.result }} |" >> security_summary.md
+        echo "| Secrets Scan | ${{ needs.secrets-scan.result }} |" >> security_summary.md
+        echo "" >> security_summary.md
+        
+        # Overall assessment
+        FAILED_CHECKS=0
+        [[ "${{ needs.audit.result }}" != "success" ]] && ((FAILED_CHECKS++))
+        [[ "${{ needs.license-check.result }}" != "success" ]] && ((FAILED_CHECKS++))
+        [[ "${{ needs.static-analysis.result }}" != "success" ]] && ((FAILED_CHECKS++))
+        [[ "${{ needs.vulnerability-patterns.result }}" != "success" ]] && ((FAILED_CHECKS++))
+        [[ "${{ needs.supply-chain.result }}" != "success" ]] && ((FAILED_CHECKS++))
+        [[ "${{ needs.secrets-scan.result }}" != "success" ]] && ((FAILED_CHECKS++))
+        
+        if [[ $FAILED_CHECKS -eq 0 ]]; then
+          echo "## ✅ Overall Assessment: SECURE" >> security_summary.md
+          echo "" >> security_summary.md
+          echo "All security checks passed successfully. The codebase appears to be secure." >> security_summary.md
+        elif [[ $FAILED_CHECKS -le 2 ]]; then
+          echo "## ⚠️  Overall Assessment: NEEDS ATTENTION" >> security_summary.md
+          echo "" >> security_summary.md
+          echo "Some security checks failed. Review the issues and address them promptly." >> security_summary.md
+        else
+          echo "## ❌ Overall Assessment: SECURITY ISSUES" >> security_summary.md
+          echo "" >> security_summary.md
+          echo "Multiple security checks failed. Immediate attention required." >> security_summary.md
+        fi
+        
+        echo "" >> security_summary.md
+        echo "## 🔍 Recommendations" >> security_summary.md
+        echo "" >> security_summary.md
+        echo "- Review all failed security checks" >> security_summary.md
+        echo "- Update dependencies with known vulnerabilities" >> security_summary.md
+        echo "- Address any detected vulnerable patterns" >> security_summary.md
+        echo "- Ensure all licenses are compatible with project requirements" >> security_summary.md
+        echo "- Run security checks regularly in development" >> security_summary.md
+
+    - name: Upload security summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-summary
+        path: security_summary.md
+        retention-days: 30
+
+    - name: Post security status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('security_summary.md', 'utf8');
+          
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary
+          });

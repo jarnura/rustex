@@ -1,0 +1,176 @@
+name: 🐛 Bug Report
+description: Report a bug to help us improve RustEx
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug! Please fill out this form as completely as possible.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm you have completed the following
+      options:
+        - label: I have searched the existing issues to ensure this bug hasn't been reported
+          required: true
+        - label: I have updated to the latest version of RustEx
+          required: true
+        - label: I have read the documentation
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Describe the bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Expected behavior...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Actual behavior...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Please provide detailed steps to reproduce the issue
+      placeholder: |
+        1. Run `rustex extract ...`
+        2. Use the following Rust code: ...
+        3. See error
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: code_sample
+    attributes:
+      label: Code Sample
+      description: If applicable, provide a minimal code sample that reproduces the issue
+      render: rust
+      placeholder: |
+        // Your Rust code here that triggers the bug
+        fn example() {
+            // ...
+        }
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command Used
+      description: The exact RustEx command that triggered the bug
+      render: bash
+      placeholder: |
+        rustex extract --format json --include "src/**/*.rs"
+
+  - type: textarea
+    id: error_output
+    attributes:
+      label: Error Output
+      description: Full error message or unexpected output
+      render: text
+      placeholder: Paste the complete error output here...
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: RustEx Version
+      description: Which version of RustEx are you using?
+      options:
+        - "Latest (main branch)"
+        - "v0.1.0"
+        - "Other (please specify in additional info)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Which operating system are you using?
+      options:
+        - "Linux"
+        - "macOS"
+        - "Windows"
+        - "Other (please specify)"
+    validations:
+      required: true
+
+  - type: input
+    id: rust_version
+    attributes:
+      label: Rust Version
+      description: Output of `rustc --version`
+      placeholder: "rustc 1.70.0 (90c541806 2023-05-31)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Any additional environment details that might be relevant
+      placeholder: |
+        - Cargo version:
+        - Project size:
+        - Any custom configuration:
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact Level
+      description: How severely does this bug affect your usage?
+      options:
+        - "Critical - Blocks all usage"
+        - "High - Significantly impacts workflow"
+        - "Medium - Workaround available"
+        - "Low - Minor inconvenience"
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current Workaround
+      description: Have you found any workaround for this issue?
+      placeholder: Describe any workaround you've found...
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or information about the problem here
+      placeholder: Any additional information that might be helpful...
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be willing to help fix this bug?
+      options:
+        - label: I would be willing to submit a PR to fix this bug
+          required: false

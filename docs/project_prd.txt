@@ -1,0 +1,518 @@
+# Product Requirements Document (PRD)
+## Rust AST Extractor
+
+**Document Version:** 1.0  
+**Last Updated:** July 10, 2025  
+**Project Code Name:** `rustex`  
+**Target Release:** Q4 2025  
+
+---
+
+## 1. Executive Summary
+
+### 1.1 Project Overview
+The Rust AST Extractor (`rustex`) is a comprehensive, open-source tool designed to extract Abstract Syntax Trees (ASTs) from Rust projects and convert them into structured formats optimized for Large Language Models (LLMs), Retrieval-Augmented Generation (RAG) systems, and code analysis applications.
+
+### 1.2 Business Justification
+With the rapid growth of AI-powered development tools and the increasing adoption of Rust in systems programming, there's a critical gap in tooling that can efficiently extract and structure Rust code for AI consumption. Current solutions are either too basic, proprietary, or not optimized for modern LLM workflows.
+
+### 1.3 Value Proposition
+- **First-class LLM support**: Native optimization for AI/ML workflows
+- **Production-grade performance**: Handle enterprise-scale Rust codebases
+- **Extensible architecture**: Plugin system for custom analysis
+- **Multiple output formats**: JSON, Markdown, GraphQL, and specialized RAG formats
+- **Open source**: Community-driven development with MIT/Apache-2.0 licensing
+
+---
+
+## 2. Problem Statement
+
+### 2.1 Current Challenges
+1. **Fragmented tooling**: Existing AST extraction tools are scattered and inconsistent
+2. **LLM incompatibility**: Most tools output formats that require significant preprocessing for AI consumption
+3. **Performance limitations**: Existing solutions don't scale to large Rust projects (100k+ lines)
+4. **Limited metadata**: Current tools miss critical information like documentation, complexity metrics, and dependency relationships
+5. **Developer friction**: Complex setup and configuration requirements
+
+### 2.2 Target Users
+- **AI/ML Engineers** building code analysis models
+- **DevRel Teams** creating documentation and tutorials
+- **Code Intelligence Platforms** (GitHub Copilot, Sourcegraph, etc.)
+- **Academic Researchers** studying code patterns and complexity
+- **Enterprise Development Teams** conducting code audits and analysis
+
+---
+
+## 3. Goals and Objectives
+
+### 3.1 Primary Goals
+1. **Create industry-standard Rust AST extraction tool**
+2. **Optimize for LLM/RAG consumption workflows**
+3. **Achieve production-grade performance and reliability**
+4. **Build vibrant open-source community**
+5. **Establish foundation for Rust code intelligence ecosystem**
+
+### 3.2 Success Criteria
+- **Performance**: Process 10k+ lines per second
+- **Adoption**: 1k+ GitHub stars within 6 months
+- **Reliability**: 99% success rate on valid Rust projects
+- **Community**: 20+ contributors by end of year
+- **Integration**: Used by 3+ major code intelligence platforms
+
+### 3.3 Non-Goals
+- Real-time IDE integration (Phase 2)
+- Cross-language support (Future consideration)
+- Code modification/transformation capabilities
+- Proprietary cloud service offerings
+
+---
+
+## 4. User Stories and Use Cases
+
+### 4.1 Primary Use Cases
+
+#### UC1: LLM Training Data Preparation
+**As an** AI researcher  
+**I want to** extract structured representations of Rust codebases  
+**So that** I can train language models on high-quality code data
+
+**Acceptance Criteria:**
+- Extract functions, structs, enums, traits with full signatures
+- Include documentation and comments
+- Preserve semantic relationships
+- Output in LLM-friendly JSON format
+- Handle 100k+ line codebases efficiently
+
+#### UC2: RAG System Development
+**As a** developer building a coding assistant  
+**I want to** chunk and index Rust code semantically  
+**So that** my RAG system can provide accurate code suggestions
+
+**Acceptance Criteria:**
+- Semantic chunking based on code elements
+- Metadata for relevance scoring
+- Vector embedding preparation
+- Incremental updates for large codebases
+- Context preservation across chunks
+
+#### UC3: Code Documentation Generation
+**As a** technical writer  
+**I want to** automatically generate comprehensive code documentation  
+**So that** I can maintain up-to-date project documentation
+
+**Acceptance Criteria:**
+- Extract doc comments and inline documentation
+- Generate markdown output
+- Cross-reference code elements
+- Include usage examples and complexity metrics
+- Support custom documentation templates
+
+#### UC4: Code Analysis and Metrics
+**As a** development team lead  
+**I want to** analyze codebase complexity and structure  
+**So that** I can make informed refactoring decisions
+
+**Acceptance Criteria:**
+- Calculate cyclomatic complexity
+- Identify dependency relationships
+- Generate code metrics reports
+- Visualize project structure
+- Track metrics over time
+
+### 4.2 Secondary Use Cases
+- Academic research on code patterns
+- Automated code review assistance
+- Legacy code migration planning
+- Open source project analysis
+- Code similarity detection
+
+---
+
+## 5. Functional Requirements
+
+### 5.1 Core Extraction Features
+| Requirement ID | Description | Priority | Status |
+|---|---|---|---|
+| FR-001 | Parse individual Rust files | Critical | ✅ Complete |
+| FR-002 | Parse entire Rust projects/workspaces | Critical | 🟡 In Progress |
+| FR-003 | Extract functions with full signatures | Critical | ✅ Complete |
+| FR-004 | Extract structs, enums, traits, impls | Critical | ✅ Complete |
+| FR-005 | Extract documentation comments | High | ✅ Complete |
+| FR-006 | Extract import/use statements | High | 🟡 In Progress |
+| FR-007 | Calculate complexity metrics | Medium | 🟡 In Progress |
+| FR-008 | Parse macro definitions and expansions | Medium | ⏸️ Planned |
+| FR-009 | Handle generic parameters and lifetimes | Medium | 🟡 In Progress |
+| FR-010 | Extract inline comments | Low | ⏸️ Planned |
+
+### 5.2 Output Format Features
+| Requirement ID | Description | Priority | Status |
+|---|---|---|---|
+| FR-011 | JSON output format | Critical | ✅ Complete |
+| FR-012 | Markdown documentation output | High | 🟡 In Progress |
+| FR-013 | RAG-optimized chunked output | High | ⏸️ Planned |
+| FR-014 | GraphQL schema output | Medium | ⏸️ Planned |
+| FR-015 | MessagePack binary format | Medium | ⏸️ Planned |
+| FR-016 | Custom format plugin support | Low | ⏸️ Planned |
+
+### 5.3 CLI and Configuration
+| Requirement ID | Description | Priority | Status |
+|---|---|---|---|
+| FR-017 | Command-line interface | Critical | 🟡 In Progress |
+| FR-018 | Configuration file support | High | 🟡 In Progress |
+| FR-019 | File filtering (include/exclude) | High | 🟡 In Progress |
+| FR-020 | Progress indicators for large projects | Medium | 🟡 In Progress |
+| FR-021 | Incremental parsing with caching | Medium | ⏸️ Planned |
+| FR-022 | Plugin system for extensibility | Medium | ⏸️ Planned |
+
+### 5.4 Library Interface
+| Requirement ID | Description | Priority | Status |
+|---|---|---|---|
+| FR-023 | Rust library API | Critical | ✅ Complete |
+| FR-024 | Async/await support | High | 🟡 In Progress |
+| FR-025 | Error handling and recovery | High | 🟡 In Progress |
+| FR-026 | Memory-efficient streaming | Medium | ⏸️ Planned |
+| FR-027 | Parallel processing support | Medium | ⏸️ Planned |
+
+---
+
+## 6. Non-Functional Requirements
+
+### 6.1 Performance Requirements
+| Requirement | Target | Measurement Method |
+|---|---|---|
+| Processing Speed | >10k lines/second | Benchmark on reference codebases |
+| Memory Usage | <1GB for 100k line projects | Memory profiling during extraction |
+| Startup Time | <500ms for CLI | Time measurement from invocation |
+| Incremental Updates | <100ms for small changes | Delta processing benchmarks |
+
+### 6.2 Reliability Requirements
+| Requirement | Target | Measurement Method |
+|---|---|---|
+| Success Rate | 99% on valid Rust projects | Automated testing on corpus |
+| Error Recovery | Graceful handling of malformed code | Error scenario testing |
+| Memory Safety | Zero memory leaks | Valgrind/AddressSanitizer testing |
+| Crash Rate | <0.1% on valid inputs | Stability testing |
+
+### 6.3 Scalability Requirements
+| Requirement | Target | Measurement Method |
+|---|---|---|
+| Project Size | Support up to 1M lines | Large project testing |
+| Concurrent Processing | Utilize all available cores | Parallel processing benchmarks |
+| File Count | Handle 10k+ files per project | Directory traversal testing |
+| Workspace Support | Multi-crate workspace handling | Complex project testing |
+
+### 6.4 Usability Requirements
+| Requirement | Target | Measurement Method |
+|---|---|---|
+| Documentation Coverage | 100% of public APIs | Doc coverage tools |
+| Setup Time | <5 minutes from install to first use | User testing |
+| Error Messages | Clear, actionable error descriptions | UX review |
+| Configuration | Sensible defaults, minimal required config | User feedback |
+
+---
+
+## 7. Technical Architecture
+
+### 7.1 System Components
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   CLI Interface │    │  Library Core   │    │  Plugin System  │
+│   (rustex-cli)  │────│ (rustex-core)   │────│ (rustex-plugins)│
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                       ┌─────────────────┐
+                       │ Output Formatters│
+                       │(rustex-formats) │
+                       └─────────────────┘
+```
+
+### 7.2 Core Dependencies
+- **syn**: Rust parser and AST library
+- **serde**: Serialization framework
+- **tokio**: Async runtime
+- **clap**: CLI argument parsing
+- **walkdir**: Directory traversal
+- **tracing**: Structured logging
+
+### 7.3 Data Flow
+1. **Discovery**: Find and filter Rust source files
+2. **Parsing**: Convert source to AST using `syn`
+3. **Extraction**: Visit AST nodes and extract metadata
+4. **Processing**: Apply plugins and transformations
+5. **Formatting**: Convert to target output format
+6. **Output**: Write to file or stdout
+
+### 7.4 Plugin Architecture
+```rust
+trait Plugin {
+    fn name(&self) -> &str;
+    fn process(&self, context: &PluginContext) -> Result<PluginOutput>;
+}
+```
+
+---
+
+## 8. Current Status
+
+### 8.1 Completed Components ✅
+- **Core AST parsing infrastructure** using `syn` crate
+- **Basic visitor pattern implementation** for code element extraction
+- **Data structures** for representing extracted AST information
+- **Function extraction** with signatures, documentation, and metadata
+- **Struct/Enum/Trait extraction** with basic information
+- **JSON output format** with pretty-printing support
+- **Basic CLI interface** with argument parsing
+- **Project structure** and workspace configuration
+- **Initial error handling** framework
+
+### 8.2 In Progress Components 🟡
+- **File discovery and filtering** with glob pattern support
+- **Configuration system** with TOML file support
+- **Documentation extraction** from doc comments
+- **Import/use statement parsing**
+- **CLI command implementations** (extract, metrics, deps)
+- **Markdown output formatter**
+- **Basic complexity calculation**
+- **Progress indicators** for long-running operations
+
+### 8.3 Planned Components ⏸️
+- **Incremental parsing** with change detection
+- **Plugin system** implementation
+- **RAG-optimized output** format
+- **Dependency analysis** and visualization
+- **Advanced complexity metrics**
+- **Parallel processing** for large projects
+- **Memory optimization** for streaming
+- **Comprehensive test suite**
+- **Documentation and examples**
+- **CI/CD pipeline** setup
+
+### 8.4 Code Metrics (Current)
+- **Lines of Code**: ~1,500 (estimated)
+- **Test Coverage**: 20% (basic unit tests)
+- **Documentation**: 40% (core APIs documented)
+- **Performance**: Baseline established, optimizations pending
+- **Memory Usage**: Unoptimized, profiling needed
+
+---
+
+## 9. Development Timeline
+
+### 9.1 Phase 1: Foundation (Weeks 1-3) - 🟡 In Progress
+**Deliverables:**
+- [ ] Working CLI with basic extraction
+- [ ] Core parsing pipeline complete
+- [ ] JSON output with comprehensive metadata
+- [ ] Basic test suite (>70% coverage)
+- [ ] Project documentation and setup guide
+
+**Success Criteria:**
+- Successfully parse and extract from simple Rust projects
+- Generate valid JSON output for LLM consumption
+- CLI can handle basic use cases
+
+### 9.2 Phase 2: Enhanced Features (Weeks 4-6) - ⏸️ Planned
+**Deliverables:**
+- [ ] Multiple output formats (Markdown, RAG)
+- [ ] Configuration system with TOML support
+- [ ] File filtering and include/exclude patterns
+- [ ] Progress indicators and better UX
+- [ ] Integration test suite
+
+**Success Criteria:**
+- Handle complex Rust projects (10k+ lines)
+- Support for Rust workspaces
+- Production-ready error handling
+
+### 9.3 Phase 3: Performance & Scale (Weeks 7-9) - ⏸️ Planned
+**Deliverables:**
+- [ ] Incremental parsing implementation
+- [ ] Parallel processing for large projects
+- [ ] Memory optimization and streaming
+- [ ] Performance benchmarking suite
+- [ ] Plugin system foundation
+
+**Success Criteria:**
+- Meet performance targets (10k lines/second)
+- Handle enterprise-scale projects (100k+ lines)
+- Memory usage under 1GB for large projects
+
+### 9.4 Phase 4: LLM/RAG Optimization (Weeks 10-12) - ⏸️ Planned
+**Deliverables:**
+- [ ] RAG preprocessing plugins
+- [ ] Semantic chunking strategies
+- [ ] Vector embedding preparation
+- [ ] LLM-specific output optimizations
+- [ ] Integration examples and guides
+
+**Success Criteria:**
+- Optimized formats for popular LLM frameworks
+- Seamless integration with vector databases
+- Comprehensive examples for AI workflows
+
+### 9.5 Phase 5: Production Ready (Weeks 13-15) - ⏸️ Planned
+**Deliverables:**
+- [ ] Comprehensive documentation
+- [ ] Community contribution guidelines
+- [ ] CI/CD pipeline with automated releases
+- [ ] Cross-platform testing (Linux, macOS, Windows)
+- [ ] Performance regression testing
+
+**Success Criteria:**
+- Ready for public release and community adoption
+- All non-functional requirements met
+- Comprehensive user and developer documentation
+
+---
+
+## 10. Success Metrics and KPIs
+
+### 10.1 Technical Metrics
+| Metric | Current | Target (6 months) | Target (1 year) |
+|---|---|---|---|
+| Processing Speed | TBD | 10k lines/sec | 25k lines/sec |
+| Memory Efficiency | TBD | <1GB for 100k lines | <500MB for 100k lines |
+| Success Rate | TBD | 99% valid projects | 99.5% valid projects |
+| Test Coverage | 20% | 90% | 95% |
+
+### 10.2 Adoption Metrics
+| Metric | Current | Target (6 months) | Target (1 year) |
+|---|---|---|---|
+| GitHub Stars | 0 | 1,000 | 5,000 |
+| Crates.io Downloads | 0 | 10,000/month | 50,000/month |
+| Contributors | 1 | 20 | 50 |
+| Issues/PRs | 0 | 100 resolved | 500 resolved |
+
+### 10.3 Community Metrics
+| Metric | Current | Target (6 months) | Target (1 year) |
+|---|---|---|---|
+| Documentation Pages | 5 | 50 | 100 |
+| Example Projects | 0 | 10 | 25 |
+| Blog Posts/Articles | 0 | 5 | 20 |
+| Conference Talks | 0 | 2 | 5 |
+
+### 10.4 Business Impact Metrics
+| Metric | Current | Target (6 months) | Target (1 year) |
+|---|---|---|---|
+| Integration Partners | 0 | 3 platforms | 10 platforms |
+| Academic Citations | 0 | 5 papers | 20 papers |
+| Enterprise Adoption | 0 | 5 companies | 25 companies |
+| Derived Projects | 0 | 3 tools | 15 tools |
+
+---
+
+## 11. Risk Assessment
+
+### 11.1 Technical Risks
+| Risk | Probability | Impact | Mitigation Strategy |
+|---|---|---|---|
+| Performance targets not met | Medium | High | Early benchmarking, incremental optimization |
+| Memory usage exceeding limits | Medium | Medium | Streaming architecture, profiling from start |
+| Rust syntax changes breaking parser | Low | High | Pin to stable `syn` versions, automated testing |
+| Plugin system complexity | High | Medium | Start simple, iterate based on user needs |
+
+### 11.2 Market Risks
+| Risk | Probability | Impact | Mitigation Strategy |
+|---|---|---|---|
+| Limited adoption due to niche market | Medium | High | Broad use case targeting, community building |
+| Competition from established tools | Medium | Medium | Focus on LLM optimization differentiator |
+| Rust ecosystem fragmentation | Low | Medium | Follow community standards, collaborate |
+| AI/ML trend shifts away from code | Low | High | Maintain general code analysis capabilities |
+
+### 11.3 Resource Risks
+| Risk | Probability | Impact | Mitigation Strategy |
+|---|---|---|---|
+| Insufficient development resources | Medium | High | Phased development, community contributions |
+| Burnout from single maintainer | High | High | Early community building, shared ownership |
+| Dependency maintenance burden | Medium | Medium | Minimal dependencies, pin versions |
+| Documentation lag | High | Medium | Documentation-driven development |
+
+### 11.4 Operational Risks
+| Risk | Probability | Impact | Mitigation Strategy |
+|---|---|---|---|
+| Security vulnerabilities | Medium | High | Regular dependency updates, security audits |
+| Breaking API changes | Medium | Medium | Semantic versioning, deprecation warnings |
+| Cross-platform compatibility issues | Medium | Medium | CI testing on all platforms |
+| License compliance issues | Low | High | Clear license documentation, legal review |
+
+---
+
+## 12. Dependencies and Constraints
+
+### 12.1 Technical Dependencies
+- **Rust Ecosystem**: Stable Rust compiler and `syn` crate
+- **Build Tools**: Cargo, standard Rust toolchain
+- **CI/CD**: GitHub Actions for automated testing
+- **Documentation**: mdBook for user guides
+- **Community**: GitHub for issue tracking and contributions
+
+### 12.2 External Dependencies
+- **syn crate**: Core parsing functionality - Critical dependency
+- **serde ecosystem**: Serialization - Stable, well-maintained
+- **tokio**: Async runtime - Industry standard
+- **clap**: CLI parsing - Stable, feature-rich
+
+### 12.3 Resource Constraints
+- **Development Time**: Initially single developer, expanding to team
+- **Infrastructure**: GitHub free tier, later consider paid features
+- **Testing Resources**: Limited to open source projects for testing
+- **Documentation**: Time-intensive, requires ongoing maintenance
+
+### 12.4 Regulatory Constraints
+- **Open Source Licensing**: MIT/Apache-2.0 dual licensing
+- **Export Restrictions**: None anticipated for code analysis tools
+- **Privacy**: No personal data collection planned
+- **Security**: Standard open source security practices
+
+---
+
+## 13. Future Roadmap (Post-v1.0)
+
+### 13.1 Version 2.0 Vision
+- **LSP Server Integration**: Real-time code analysis in editors
+- **Cross-Language Support**: Extend to other languages (C++, Go)
+- **Advanced Semantic Analysis**: Type resolution, control flow
+- **Machine Learning Integration**: Code similarity, pattern detection
+- **Web Interface**: Browser-based code exploration
+
+### 13.2 Ecosystem Expansion
+- **IDE Plugins**: VS Code, IntelliJ, Vim extensions
+- **Cloud Services**: Optional hosted analysis for large projects
+- **API Services**: REST/GraphQL APIs for programmatic access
+- **Educational Tools**: Interactive learning platforms integration
+- **Research Platform**: Dataset and benchmarking for academia
+
+### 13.3 Community Growth
+- **Governance Model**: Establish project steering committee
+- **Contributor Program**: Mentorship and recognition system
+- **Conference Presence**: Regular talks at Rust and AI conferences
+- **Academic Partnerships**: Collaborate with universities on research
+- **Industry Adoption**: Enterprise support and consulting offerings
+
+---
+
+## 14. Conclusion
+
+The Rust AST Extractor represents a critical infrastructure component for the growing intersection of Rust development and AI-powered tools. By focusing on LLM optimization, production-grade performance, and community-driven development, this project has the potential to become the de facto standard for Rust code analysis in AI workflows.
+
+The phased development approach balances immediate utility with long-term vision, while the open-source model ensures broad adoption and community contribution. Success will be measured not just in technical metrics, but in the enablement of new AI-powered development tools and research capabilities.
+
+**Next Actions:**
+1. Complete Phase 1 development (Weeks 1-3)
+2. Establish community presence (GitHub, Discord, documentation)
+3. Begin outreach to potential early adopters
+4. Implement comprehensive testing and benchmarking
+5. Prepare for public release and community feedback
+
+---
+
+**Document Approval:**
+- [ ] Technical Lead Review
+- [ ] Community Feedback
+- [ ] Security Review
+- [ ] Legal Review (Licensing)
+- [ ] Final Approval
+
+**Document History:**
+- v1.0 (July 10, 2025): Initial PRD creation
+- Future versions will track changes and updates

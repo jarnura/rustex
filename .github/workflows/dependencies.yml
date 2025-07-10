@@ -1,0 +1,488 @@
+name: Dependency Management
+
+on:
+  schedule:
+    # Check for dependency updates weekly on Mondays at 8 AM UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      update_type:
+        description: 'Type of update to perform'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+        - all
+      create_pr:
+        description: 'Create pull request with updates'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Check for available updates
+  check-updates:
+    name: Check Available Updates
+    runs-on: ubuntu-latest
+    outputs:
+      has-updates: ${{ steps.check.outputs.has-updates }}
+      update-summary: ${{ steps.check.outputs.summary }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependency tools
+      run: |
+        cargo install cargo-outdated --locked
+        cargo install cargo-edit --locked
+        cargo install cargo-audit --locked
+
+    - name: Check for outdated dependencies
+      id: check
+      run: |
+        echo "🔍 Checking for outdated dependencies..."
+        
+        # Generate outdated report
+        cargo outdated --root-deps-only --format json > outdated.json
+        
+        # Check if there are any updates
+        UPDATES_COUNT=$(jq '.dependencies | length' outdated.json)
+        
+        if [[ $UPDATES_COUNT -gt 0 ]]; then
+          echo "has-updates=true" >> $GITHUB_OUTPUT
+          echo "Found $UPDATES_COUNT outdated dependencies"
+          
+          # Create summary
+          echo "## 📦 Dependency Updates Available" > update_summary.md
+          echo "" >> update_summary.md
+          echo "Found **$UPDATES_COUNT** outdated dependencies:" >> update_summary.md
+          echo "" >> update_summary.md
+          
+          # Add table header
+          echo "| Package | Current | Latest | Update Type |" >> update_summary.md
+          echo "|---------|---------|--------|-------------|" >> update_summary.md
+          
+          # Parse each dependency
+          jq -r '.dependencies[] | "\(.name)|\(.project)|\(.latest)|\(.kind)"' outdated.json | while IFS='|' read -r name current latest kind; do
+            # Determine update type
+            if [[ "$current" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]] && [[ "$latest" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+              current_major=${BASH_REMATCH[1]}
+              current_minor=${BASH_REMATCH[2]}
+              current_patch=${BASH_REMATCH[3]}
+              
+              if [[ "$latest" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+                latest_major=${BASH_REMATCH[1]}
+                latest_minor=${BASH_REMATCH[2]}
+                latest_patch=${BASH_REMATCH[3]}
+                
+                if [[ $latest_major -gt $current_major ]]; then
+                  update_type="🔴 Major"
+                elif [[ $latest_minor -gt $current_minor ]]; then
+                  update_type="🟡 Minor"
+                else
+                  update_type="🟢 Patch"
+                fi
+              else
+                update_type="❓ Unknown"
+              fi
+            else
+              update_type="❓ Unknown"
+            fi
+            
+            echo "| \`$name\` | $current | $latest | $update_type |" >> update_summary.md
+          done
+          
+          echo "" >> update_summary.md
+          echo "### Update Types" >> update_summary.md
+          echo "- 🟢 **Patch**: Bug fixes, no breaking changes" >> update_summary.md
+          echo "- 🟡 **Minor**: New features, backward compatible" >> update_summary.md
+          echo "- 🔴 **Major**: Breaking changes, manual review required" >> update_summary.md
+          
+          # Set summary output
+          SUMMARY=$(cat update_summary.md | base64 -w 0)
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+        else
+          echo "has-updates=false" >> $GITHUB_OUTPUT
+          echo "✅ All dependencies are up to date"
+        fi
+
+    - name: Check for security advisories
+      run: |
+        echo "🔒 Checking for security advisories..."
+        
+        cargo audit --json > audit.json || true
+        
+        VULNS=$(jq '.vulnerabilities.count // 0' audit.json)
+        
+        if [[ $VULNS -gt 0 ]]; then
+          echo "❌ Found $VULNS security vulnerabilities!"
+          echo "" >> update_summary.md
+          echo "## 🚨 Security Advisories" >> update_summary.md
+          echo "" >> update_summary.md
+          echo "**$VULNS** security vulnerabilities found in dependencies:" >> update_summary.md
+          echo "" >> update_summary.md
+          
+          jq -r '.vulnerabilities.list[] | "- **\(.package.name)** v\(.package.version): \(.advisory.title)"' audit.json >> update_summary.md || true
+          
+          echo "" >> update_summary.md
+          echo "⚠️ **Security updates should be prioritized!**" >> update_summary.md
+        else
+          echo "✅ No security vulnerabilities found"
+        fi
+
+    - name: Upload check results
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-results
+        path: |
+          outdated.json
+          audit.json
+          update_summary.md
+        retention-days: 7
+
+  # Perform dependency updates
+  update-dependencies:
+    name: Update Dependencies
+    needs: check-updates
+    if: needs.check-updates.outputs.has-updates == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependency tools
+      run: |
+        cargo install cargo-edit --locked
+        cargo install cargo-audit --locked
+
+    - name: Configure git
+      run: |
+        git config --global user.name "dependabot[bot]"
+        git config --global user.email "dependabot[bot]@users.noreply.github.com"
+
+    - name: Create update branch
+      run: |
+        BRANCH_NAME="dependency-updates/$(date +%Y%m%d)"
+        git checkout -b "$BRANCH_NAME"
+        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+    - name: Update dependencies
+      run: |
+        UPDATE_TYPE="${{ github.event.inputs.update_type || 'patch' }}"
+        echo "🔄 Performing $UPDATE_TYPE updates..."
+        
+        case "$UPDATE_TYPE" in
+          "patch")
+            echo "Updating patch versions only..."
+            cargo update
+            ;;
+          "minor")
+            echo "Updating minor versions..."
+            # Use cargo-edit to update minor versions
+            cargo upgrade --incompatible allow --pinned allow || true
+            ;;
+          "major")
+            echo "Updating major versions (careful!)..."
+            cargo upgrade --incompatible allow --pinned allow || true
+            ;;
+          "all")
+            echo "Updating all versions..."
+            cargo upgrade --incompatible allow --pinned allow || true
+            ;;
+        esac
+
+    - name: Run tests after updates
+      run: |
+        echo "🧪 Running tests to verify updates..."
+        
+        # Build all crates
+        if ! cargo build --workspace --all-features; then
+          echo "❌ Build failed after dependency updates"
+          exit 1
+        fi
+        
+        # Run tests
+        if ! cargo test --workspace --all-features; then
+          echo "❌ Tests failed after dependency updates"
+          exit 1
+        fi
+        
+        echo "✅ All tests passed after updates"
+
+    - name: Check for security improvements
+      run: |
+        echo "🔒 Verifying security improvements..."
+        
+        cargo audit --json > audit_after.json || true
+        VULNS_AFTER=$(jq '.vulnerabilities.count // 0' audit_after.json)
+        
+        echo "Security vulnerabilities after update: $VULNS_AFTER"
+        
+        if [[ $VULNS_AFTER -gt 0 ]]; then
+          echo "⚠️  Still have $VULNS_AFTER vulnerabilities after update"
+          jq '.vulnerabilities.list[] | "- \(.package.name) v\(.package.version): \(.advisory.title)"' audit_after.json
+        else
+          echo "✅ No security vulnerabilities remaining"
+        fi
+
+    - name: Generate update changelog
+      run: |
+        echo "📝 Generating update changelog..."
+        
+        # Create detailed changelog
+        echo "# Dependency Update Changelog" > DEPENDENCY_CHANGELOG.md
+        echo "" >> DEPENDENCY_CHANGELOG.md
+        echo "**Update Date:** $(date)" >> DEPENDENCY_CHANGELOG.md
+        echo "**Update Type:** ${{ github.event.inputs.update_type || 'patch' }}" >> DEPENDENCY_CHANGELOG.md
+        echo "" >> DEPENDENCY_CHANGELOG.md
+        
+        # Show git diff for Cargo.lock
+        if git diff --name-only | grep -q "Cargo.lock"; then
+          echo "## Changed Dependencies" >> DEPENDENCY_CHANGELOG.md
+          echo "" >> DEPENDENCY_CHANGELOG.md
+          echo '```diff' >> DEPENDENCY_CHANGELOG.md
+          git diff Cargo.lock | head -100 >> DEPENDENCY_CHANGELOG.md
+          echo '```' >> DEPENDENCY_CHANGELOG.md
+          echo "" >> DEPENDENCY_CHANGELOG.md
+        fi
+        
+        # Add test results
+        echo "## Verification" >> DEPENDENCY_CHANGELOG.md
+        echo "- ✅ All crates build successfully" >> DEPENDENCY_CHANGELOG.md
+        echo "- ✅ All tests pass" >> DEPENDENCY_CHANGELOG.md
+        echo "- 🔒 Security audit completed" >> DEPENDENCY_CHANGELOG.md
+
+    - name: Commit updates
+      run: |
+        # Check if there are any changes
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "No changes to commit"
+          exit 0
+        fi
+        
+        git add .
+        git commit -m "chore: update dependencies (${{ github.event.inputs.update_type || 'patch' }})" \
+                   -m "Automated dependency update" \
+                   -m "Update type: ${{ github.event.inputs.update_type || 'patch' }}" \
+                   -m "Generated by dependency management workflow"
+
+    - name: Push changes
+      run: |
+        git push origin "$BRANCH_NAME"
+
+    - name: Create pull request
+      if: github.event.inputs.create_pr != 'false'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Decode summary from previous job
+          const summaryB64 = '${{ needs.check-updates.outputs.update-summary }}';
+          const summary = Buffer.from(summaryB64, 'base64').toString('utf8');
+          
+          // Read changelog
+          let changelog = '';
+          try {
+            changelog = fs.readFileSync('DEPENDENCY_CHANGELOG.md', 'utf8');
+          } catch (error) {
+            changelog = 'No changelog available.';
+          }
+          
+          const body = `## 📦 Automated Dependency Updates
+          
+${summary}
+
+${changelog}
+
+---
+
+🤖 This PR was automatically created by the dependency management workflow.
+
+### Review Checklist
+- [ ] Review breaking changes in major updates
+- [ ] Check that all tests pass
+- [ ] Verify no new security vulnerabilities
+- [ ] Update documentation if needed
+
+### Manual Testing
+Run the following commands to test locally:
+\`\`\`bash
+cargo build --workspace --all-features
+cargo test --workspace --all-features
+cargo audit
+\`\`\`
+          `;
+          
+          const pr = await github.rest.pulls.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `chore: dependency updates (${{ github.event.inputs.update_type || 'patch' }})`,
+            head: process.env.BRANCH_NAME,
+            base: 'main',
+            body: body,
+            draft: false
+          });
+          
+          console.log(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
+          
+          // Add labels
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr.data.number,
+            labels: ['dependencies', 'automated']
+          });
+
+  # Monitor dependency health
+  dependency-health:
+    name: Dependency Health Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install analysis tools
+      run: |
+        cargo install cargo-outdated --locked
+        cargo install cargo-audit --locked
+        cargo install cargo-license --locked
+        cargo install cargo-tree --locked
+
+    - name: Generate comprehensive health report
+      run: |
+        echo "📊 Generating dependency health report..."
+        
+        echo "# 📦 Dependency Health Report" > health_report.md
+        echo "" >> health_report.md
+        echo "**Generated:** $(date)" >> health_report.md
+        echo "**Repository:** ${{ github.repository }}" >> health_report.md
+        echo "" >> health_report.md
+        
+        # Dependency tree overview
+        echo "## 🌳 Dependency Tree Overview" >> health_report.md
+        echo '```' >> health_report.md
+        cargo tree --depth 2 >> health_report.md
+        echo '```' >> health_report.md
+        echo "" >> health_report.md
+        
+        # Security status
+        echo "## 🔒 Security Status" >> health_report.md
+        cargo audit --json > audit_health.json || true
+        VULNS=$(jq '.vulnerabilities.count // 0' audit_health.json)
+        
+        if [[ $VULNS -eq 0 ]]; then
+          echo "✅ **No known security vulnerabilities**" >> health_report.md
+        else
+          echo "❌ **$VULNS security vulnerabilities found**" >> health_report.md
+          echo "" >> health_report.md
+          jq -r '.vulnerabilities.list[] | "- **\(.package.name)** v\(.package.version): \(.advisory.title)"' audit_health.json >> health_report.md
+        fi
+        echo "" >> health_report.md
+        
+        # License compliance
+        echo "## 📜 License Summary" >> health_report.md
+        echo '```' >> health_report.md
+        cargo license --do-not-bundle | head -20 >> health_report.md
+        echo '```' >> health_report.md
+        echo "" >> health_report.md
+        
+        # Outdated dependencies
+        echo "## 📈 Update Status" >> health_report.md
+        cargo outdated --root-deps-only --format json > outdated_health.json
+        OUTDATED_COUNT=$(jq '.dependencies | length' outdated_health.json)
+        
+        if [[ $OUTDATED_COUNT -eq 0 ]]; then
+          echo "✅ **All dependencies are up to date**" >> health_report.md
+        else
+          echo "⚠️ **$OUTDATED_COUNT dependencies have updates available**" >> health_report.md
+        fi
+        echo "" >> health_report.md
+        
+        # Recommendations
+        echo "## 💡 Recommendations" >> health_report.md
+        echo "" >> health_report.md
+        
+        if [[ $VULNS -gt 0 ]]; then
+          echo "- 🚨 **Priority: Address security vulnerabilities immediately**" >> health_report.md
+        fi
+        
+        if [[ $OUTDATED_COUNT -gt 5 ]]; then
+          echo "- 📦 Consider updating dependencies to latest versions" >> health_report.md
+        fi
+        
+        if [[ $VULNS -eq 0 ]] && [[ $OUTDATED_COUNT -eq 0 ]]; then
+          echo "- ✅ Dependency health is excellent! Keep monitoring regularly." >> health_report.md
+        fi
+        
+        echo "- 🔄 Run \`cargo update\` regularly for patch updates" >> health_report.md
+        echo "- 🔍 Review dependency tree for unnecessary duplicates" >> health_report.md
+        echo "- 📊 Monitor crates.io for new releases of key dependencies" >> health_report.md
+
+    - name: Upload health report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-health-report
+        path: |
+          health_report.md
+          audit_health.json
+          outdated_health.json
+        retention-days: 30
+
+    - name: Create health issue
+      if: github.event_name == 'schedule'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('health_report.md', 'utf8');
+          
+          // Check if there's an existing health report issue
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: 'dependency-health',
+            state: 'open'
+          });
+          
+          if (issues.length > 0) {
+            // Update existing issue
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issues[0].number,
+              body: report
+            });
+            console.log(`Updated existing health report issue #${issues[0].number}`);
+          } else {
+            // Create new issue
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Dependency Health Report - ${new Date().toISOString().split('T')[0]}`,
+              body: report,
+              labels: ['dependency-health', 'maintenance']
+            });
+            console.log(`Created new health report issue #${issue.data.number}`);
+          }

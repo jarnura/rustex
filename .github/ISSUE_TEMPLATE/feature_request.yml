@@ -1,0 +1,223 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for RustEx
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please help us understand your needs.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm you have completed the following
+      options:
+        - label: I have searched existing issues to ensure this feature hasn't been requested
+          required: true
+        - label: I have reviewed the roadmap and documentation
+          required: true
+        - label: This feature aligns with RustEx's purpose (AST extraction for LLM/RAG)
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A brief, clear summary of the feature you'd like to see
+      placeholder: Provide a concise summary of the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What's the current limitation?
+      placeholder: |
+        I'm always frustrated when...
+        Currently, there's no way to...
+        The existing functionality doesn't handle...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your ideal solution to the problem
+      placeholder: |
+        I would like to see...
+        The feature should work by...
+        This could be implemented as...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative approaches?
+      placeholder: |
+        Alternative 1: ...
+        Alternative 2: ...
+        Other tools that do this: ...
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which area of RustEx does this feature relate to?
+      options:
+        - "AST Parsing/Extraction"
+        - "Complexity Analysis"
+        - "Output Formats"
+        - "CLI Interface"
+        - "Configuration"
+        - "Performance"
+        - "Plugin System"
+        - "Documentation"
+        - "Testing/Quality"
+        - "Developer Experience"
+        - "Other"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority Level
+      description: How important is this feature to you?
+      options:
+        - "Critical - Blocks my usage"
+        - "High - Would significantly improve my workflow"
+        - "Medium - Nice to have"
+        - "Low - Minor improvement"
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Use Cases
+      description: Describe specific scenarios where this feature would be useful
+      placeholder: |
+        Use case 1: When analyzing large codebases...
+        Use case 2: For integration with tool X...
+        Use case 3: In CI/CD pipelines...
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Usage
+      description: Show how you envision using this feature
+      render: bash
+      placeholder: |
+        # Example command or API usage
+        rustex extract --new-feature-flag value
+        # or
+        rustex analyze --complexity-mode advanced
+
+  - type: textarea
+    id: api_design
+    attributes:
+      label: API Design (Optional)
+      description: If you have ideas about the interface, share them here
+      render: rust
+      placeholder: |
+        // Example API design
+        pub struct NewFeature {
+            pub option: String,
+        }
+        
+        impl NewFeature {
+            pub fn process(&self) -> Result<Output, Error> {
+                // ...
+            }
+        }
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      description: What requirements should this feature meet?
+      options:
+        - label: Should be backward compatible
+        - label: Should maintain current performance
+        - label: Should be configurable/optional
+        - label: Should integrate with existing workflows
+        - label: Should include comprehensive tests
+        - label: Should be well documented
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know when this feature is complete?
+      placeholder: |
+        - [ ] Feature works with all supported Rust versions
+        - [ ] Documentation is updated
+        - [ ] Tests cover the new functionality
+        - [ ] Performance impact is minimal
+        - [ ] ...
+
+  - type: dropdown
+    id: breaking_change
+    attributes:
+      label: Breaking Change
+      description: Would this feature require breaking changes to existing APIs?
+      options:
+        - "No breaking changes"
+        - "Minor breaking changes (acceptable)"
+        - "Major breaking changes (needs careful consideration)"
+        - "Unsure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: benefits
+    attributes:
+      label: Benefits
+      description: What are the key benefits of this feature?
+      placeholder: |
+        - Improved performance for large projects
+        - Better integration with existing tools
+        - Enhanced developer experience
+        - Support for new use cases
+
+  - type: textarea
+    id: resources
+    attributes:
+      label: Additional Resources
+      description: Links to relevant documentation, examples, or discussions
+      placeholder: |
+        - Related issue: #123
+        - Documentation: https://...
+        - Example project: https://...
+        - Discussion: https://...
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you willing to help implement this feature?
+      options:
+        - label: I would be willing to submit a PR to implement this feature
+          required: false
+        - label: I can help with testing and feedback
+          required: false
+        - label: I can help with documentation
+          required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other information that would help us understand this request
+      placeholder: |
+        Screenshots, mockups, related tools, technical constraints, etc.

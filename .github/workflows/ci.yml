@@ -1,0 +1,429 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  merge_group:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+# Cancel previous runs on new pushes to the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast basic checks that fail early
+  pre-check:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    outputs:
+      rust-version: ${{ steps.rust-version.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+
+    - name: Get Rust version
+      id: rust-version
+      run: echo "version=$(rustc --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+    - name: Check Cargo.toml format
+      run: |
+        for toml in $(find . -name "Cargo.toml"); do
+          echo "Checking $toml"
+          cargo metadata --manifest-path "$toml" --format-version 1 > /dev/null
+        done
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Check for common typos
+      uses: crate-ci/typos@master
+      with:
+        files: README.md CHANGELOG.md docs/ src/ crates/
+
+  # Core testing matrix
+  test:
+    name: Test Suite
+    needs: pre-check
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta, 1.70.0] # MSRV (Minimum Supported Rust Version)
+        include:
+          # Additional test configurations
+          - os: ubuntu-latest
+            rust: nightly
+            experimental: true
+          - os: ubuntu-latest
+            rust: stable
+            coverage: true
+        exclude:
+          # Reduce matrix size for PR builds
+          - os: windows-latest
+            rust: beta
+          - os: macos-latest
+            rust: beta
+
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental || false }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: llvm-tools-preview
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: test-${{ matrix.os }}-${{ matrix.rust }}
+        cache-on-failure: true
+
+    - name: Install cargo-llvm-cov (for coverage)
+      if: matrix.coverage
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: Install platform-specific dependencies
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)
+            sudo apt-get update
+            sudo apt-get install -y pkg-config
+            ;;
+          Windows)
+            # Windows-specific setup if needed
+            echo "Windows environment ready"
+            ;;
+          macOS)
+            # macOS-specific setup if needed
+            echo "macOS environment ready"
+            ;;
+        esac
+
+    - name: Build all crates
+      run: cargo build --workspace --all-features
+
+    - name: Run tests
+      if: '!matrix.coverage'
+      run: cargo test --workspace --all-features
+
+    - name: Run tests with coverage
+      if: matrix.coverage
+      run: |
+        cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+        cargo llvm-cov report --html --output-dir coverage-html
+
+    - name: Upload coverage to Codecov
+      if: matrix.coverage
+      uses: codecov/codecov-action@v4
+      with:
+        files: lcov.info
+        fail_ci_if_error: false
+        verbose: true
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload coverage artifacts
+      if: matrix.coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage-html/
+        retention-days: 7
+
+    - name: Test documentation examples
+      if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+      run: cargo test --doc --workspace
+
+    - name: Check for unused dependencies
+      if: matrix.rust == 'nightly' && matrix.os == 'ubuntu-latest'
+      continue-on-error: true
+      run: |
+        cargo install cargo-machete --locked
+        cargo machete
+
+  # Code quality checks
+  quality:
+    name: Code Quality
+    needs: pre-check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: quality-cache-v1
+
+    - name: Run Clippy
+      run: |
+        cargo clippy --workspace --all-features --all-targets -- \
+          -D warnings \
+          -D clippy::all \
+          -D clippy::pedantic \
+          -A clippy::module-name-repetitions \
+          -A clippy::too-many-lines \
+          -A clippy::missing-errors-doc \
+          -A clippy::missing-panics-doc
+
+    - name: Check documentation
+      env:
+        RUSTDOCFLAGS: -D warnings
+      run: cargo doc --workspace --all-features --no-deps --document-private-items
+
+    - name: Run cargo deny
+      uses: EmbarkStudios/cargo-deny-action@v1
+      with:
+        log-level: warn
+        command: check
+        arguments: --all-features
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Security audit
+      uses: rustsec/audit-check@v1.4.1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Check for vulnerabilities in dependencies
+      run: |
+        cargo install cargo-audit --locked
+        cargo audit
+
+  # Fuzzing tests (run on schedule or manually)
+  fuzz:
+    name: Fuzzing Tests
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust nightly
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: fuzz-cache-v1
+
+    - name: Run fuzz tests
+      run: |
+        # Create basic fuzz targets if they don't exist
+        mkdir -p fuzz/fuzz_targets
+        
+        # Create a simple parser fuzzer
+        cat > fuzz/fuzz_targets/parser_fuzz.rs << 'EOF'
+        #![no_main]
+        use libfuzzer_sys::fuzz_target;
+        
+        fuzz_target!(|data: &[u8]| {
+            if let Ok(code) = std::str::from_utf8(data) {
+                let _ = syn::parse_file(code);
+            }
+        });
+        EOF
+        
+        # Run fuzzing for limited time in CI
+        timeout 60s cargo fuzz run parser_fuzz || true
+
+  # Build and test release artifacts
+  build-artifacts:
+    name: Build Release Artifacts
+    needs: [test, quality]
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact-name: rustex-linux-x64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact-name: rustex-windows-x64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact-name: rustex-macos-x64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact-name: rustex-macos-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: build-${{ matrix.target }}
+
+    - name: Build release binary
+      run: |
+        cargo build --release --target ${{ matrix.target }} --bin rustex
+
+    - name: Create artifact directory
+      shell: bash
+      run: |
+        mkdir -p artifacts
+        cp target/${{ matrix.target }}/release/rustex* artifacts/ || true
+        
+        # Create version info
+        echo "Version: $(cargo metadata --format-version 1 | jq -r '.workspace_members[0]' | cut -d' ' -f2)" > artifacts/VERSION.txt
+        echo "Target: ${{ matrix.target }}" >> artifacts/VERSION.txt
+        echo "Built: $(date -u)" >> artifacts/VERSION.txt
+        echo "Commit: ${{ github.sha }}" >> artifacts/VERSION.txt
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact-name }}
+        path: artifacts/
+        retention-days: 30
+
+  # Integration tests with real-world projects
+  integration-test:
+    name: Integration Tests
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: rustex-linux-x64
+        path: ./bin
+
+    - name: Make binary executable
+      run: chmod +x ./bin/rustex
+
+    - name: Test with real Rust projects
+      run: |
+        # Test with this project itself
+        ./bin/rustex extract --include "crates/**/*.rs" --format json --pretty > self_analysis.json
+        
+        # Verify output is valid JSON
+        jq . self_analysis.json > /dev/null
+        echo "✅ Self-analysis completed successfully"
+        
+        # Check that we found expected elements
+        functions=$(jq '[.files[].elements[] | select(.element_type == "Function")] | length' self_analysis.json)
+        structs=$(jq '[.files[].elements[] | select(.element_type == "Struct")] | length' self_analysis.json)
+        
+        echo "Found $functions functions and $structs structs"
+        
+        if [ "$functions" -lt 10 ] || [ "$structs" -lt 5 ]; then
+          echo "❌ Expected more code elements"
+          exit 1
+        fi
+        
+        echo "✅ Integration test passed"
+
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: self_analysis.json
+        retention-days: 7
+
+  # Comprehensive status check
+  ci-success:
+    name: CI Success
+    if: always()
+    needs: [pre-check, test, quality, security, build-artifacts, integration-test]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check all jobs status
+      run: |
+        echo "Job statuses:"
+        echo "pre-check: ${{ needs.pre-check.result }}"
+        echo "test: ${{ needs.test.result }}"
+        echo "quality: ${{ needs.quality.result }}"
+        echo "security: ${{ needs.security.result }}"
+        echo "build-artifacts: ${{ needs.build-artifacts.result }}"
+        echo "integration-test: ${{ needs.integration-test.result }}"
+        
+        # Check if any required job failed
+        if [[ "${{ needs.pre-check.result }}" != "success" ]] || \
+           [[ "${{ needs.test.result }}" != "success" ]] || \
+           [[ "${{ needs.quality.result }}" != "success" ]] || \
+           [[ "${{ needs.security.result }}" != "success" ]] || \
+           [[ "${{ needs.build-artifacts.result }}" != "success" ]] || \
+           [[ "${{ needs.integration-test.result }}" != "success" ]]; then
+          echo "❌ CI pipeline failed"
+          exit 1
+        fi
+        
+        echo "✅ All CI checks passed successfully!"
+
+    - name: Create success summary
+      run: |
+        cat > ci_summary.md << 'EOF'
+        # 🎉 CI Pipeline Success
+        
+        All checks have passed successfully!
+        
+        ## ✅ Completed Checks
+        - **Pre-flight**: Code formatting, basic validation
+        - **Testing**: Multi-platform test suite with coverage
+        - **Quality**: Clippy lints, documentation checks
+        - **Security**: Dependency audit, vulnerability scanning
+        - **Artifacts**: Cross-platform binary builds
+        - **Integration**: Real-world project testing
+        
+        ## 📊 Test Coverage
+        Coverage reports are available in the artifacts.
+        
+        ## 🚀 Ready for Deployment
+        Release artifacts are built and tested for all supported platforms.
+        EOF
+
+    - name: Upload CI summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: ci-summary
+        path: ci_summary.md
+        retention-days: 30

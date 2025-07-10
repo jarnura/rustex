@@ -1,0 +1,16 @@
+[package]
+name = "rustex-plugins"
+version = "0.1.0"
+edition = "2021"
+description = "Plugin system for rustex AST extractor"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-username/rustex"
+readme = "README.md"
+keywords = ["rust", "ast", "plugins", "extensibility"]
+categories = ["development-tools"]
+
+[dependencies]
+rustex-core = { path = "../rustex-core" }
+serde = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }

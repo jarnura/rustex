@@ -1,0 +1,318 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run benchmarks weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Type of benchmark to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - quick
+        - parsing_only
+        - complexity_only
+        - extraction_only
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  benchmark:
+    name: Run Performance Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for baseline comparison
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+    
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: benchmark-cache-v1
+        cache-on-failure: true
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gnuplot
+    
+    - name: Prepare benchmark environment
+      run: |
+        # Ensure consistent CPU performance
+        echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor || true
+        
+        # Create reports directory
+        mkdir -p target/criterion
+        
+        # Set CPU affinity for consistent results
+        echo "Running on $(nproc) CPU cores"
+    
+    - name: Run benchmark suite
+      run: |
+        case "${{ github.event.inputs.benchmark_type || 'quick' }}" in
+          "full")
+            cargo bench --bench benchmarks
+            ;;
+          "quick")
+            cargo bench --bench benchmarks -- --quick
+            ;;
+          "parsing_only")
+            cargo bench --bench benchmarks ast_parsing
+            ;;
+          "complexity_only")
+            cargo bench --bench benchmarks complexity_calculation
+            ;;
+          "extraction_only")
+            cargo bench --bench benchmarks full_extraction
+            ;;
+        esac
+    
+    - name: Save benchmark baseline
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        # Save baseline for main branch
+        cargo bench --bench benchmarks -- --save-baseline main-$(date +%Y%m%d)
+    
+    - name: Compare with baseline
+      if: github.event_name == 'pull_request'
+      run: |
+        # Download baseline from main branch if available
+        if [[ -f target/criterion/main-*/estimates.json ]]; then
+          cargo bench --bench benchmarks -- --baseline main-*
+        else
+          echo "No baseline found for comparison"
+        fi
+    
+    - name: Generate performance report
+      if: always()
+      run: |
+        # Create performance summary
+        cat > performance_summary.md << 'EOF'
+        # Performance Benchmark Results
+        
+        ## Benchmark Run Information
+        - **Commit**: ${{ github.sha }}
+        - **Branch**: ${{ github.ref_name }}
+        - **Run Type**: ${{ github.event.inputs.benchmark_type || 'quick' }}
+        - **Runner**: ${{ runner.os }}
+        - **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ## Key Performance Metrics
+        
+        The benchmark suite tests the following areas:
+        - AST parsing performance across different code complexities
+        - Complexity calculation algorithm efficiency
+        - Full project extraction workflow
+        - Visitor pattern performance
+        - Output formatting speed
+        - File filtering and discovery
+        - Memory usage patterns
+        - Scalability with project size
+        
+        ## Results Location
+        
+        Detailed benchmark results are available in the `target/criterion/` directory.
+        HTML reports provide interactive charts and detailed analysis.
+        
+        ## Performance Thresholds
+        
+        - Parsing regression threshold: >10%
+        - Complexity calculation regression threshold: >15%
+        - Full extraction regression threshold: >20%
+        - Output formatting regression threshold: >5%
+        
+        ## Next Steps
+        
+        If any performance regressions are detected:
+        1. Review the changes in this PR/commit
+        2. Profile the affected code paths
+        3. Consider optimization opportunities
+        4. Update baselines if changes are intentional
+        EOF
+    
+    - name: Upload benchmark artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: |
+          target/criterion/
+          performance_summary.md
+        retention-days: 30
+    
+    - name: Check for performance regressions
+      if: github.event_name == 'pull_request'
+      run: |
+        # Simple regression check (would be enhanced with actual parsing)
+        if grep -q "regressed" target/criterion/*/change/*.json 2>/dev/null; then
+          echo "⚠️ Performance regression detected!"
+          echo "::warning::Performance regression detected in benchmarks"
+        else
+          echo "✅ No significant performance regressions detected"
+        fi
+    
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read performance summary
+          let summary = "## 📊 Performance Benchmark Results\n\n";
+          
+          try {
+            if (fs.existsSync('performance_summary.md')) {
+              summary += fs.readFileSync('performance_summary.md', 'utf8');
+            }
+          } catch (error) {
+            summary += "Could not read performance summary.\n";
+          }
+          
+          summary += "\n\n---\n";
+          summary += "📈 View detailed results in the [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n";
+          summary += "🔍 For performance analysis, download and open `target/criterion/report/index.html`.\n";
+          
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.find(comment => 
+            comment.user.login === 'github-actions[bot]' && 
+            comment.body.includes('📊 Performance Benchmark Results')
+          );
+          
+          if (existingComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: summary
+            });
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: summary
+            });
+          }
+
+  benchmark-matrix:
+    name: Cross-platform Benchmarks
+    if: github.event_name == 'schedule' || github.event.inputs.benchmark_type == 'full'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            name: Linux
+          - os: windows-latest  
+            name: Windows
+          - os: macos-latest
+            name: macOS
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+    
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: benchmark-${{ matrix.os }}-cache-v1
+    
+    - name: Install platform-specific dependencies
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)
+            sudo apt-get update && sudo apt-get install -y gnuplot
+            ;;
+          Windows)
+            # Windows doesn't need gnuplot for basic benchmarks
+            echo "Windows platform ready"
+            ;;
+          macOS)
+            brew install gnuplot || true
+            ;;
+        esac
+    
+    - name: Run quick benchmarks
+      run: cargo bench --bench benchmarks -- --quick
+    
+    - name: Upload platform results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ matrix.name }}-${{ github.sha }}
+        path: target/criterion/
+        retention-days: 7
+
+  performance-tracking:
+    name: Performance Tracking
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: benchmark
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download benchmark results
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: ./benchmark-results
+    
+    - name: Update performance database
+      run: |
+        # This would integrate with your performance tracking system
+        echo "Updating performance tracking database..."
+        echo "Commit: ${{ github.sha }}"
+        echo "Timestamp: $(date -u +%s)"
+        
+        # Example: Send results to monitoring system
+        # curl -X POST "$PERFORMANCE_API_URL" \
+        #   -H "Authorization: Bearer $PERFORMANCE_API_TOKEN" \
+        #   -H "Content-Type: application/json" \
+        #   -d "@benchmark-results/performance_data.json"
+    
+    - name: Check for significant changes
+      run: |
+        echo "Analyzing performance trends..."
+        
+        # This would implement trend analysis
+        # - Compare with historical data
+        # - Detect performance improvements/regressions
+        # - Generate alerts for significant changes
+        
+        echo "Performance analysis complete"

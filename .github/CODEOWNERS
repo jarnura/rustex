@@ -1,0 +1,29 @@
+# Global code owners
+* @maintainers
+
+# Core library
+/crates/rustex-core/ @core-team @maintainers
+
+# CLI interface
+/crates/rustex-cli/ @cli-team @maintainers
+
+# Configuration and workflows
+/.github/ @devops-team @maintainers
+/scripts/ @devops-team @maintainers
+
+# Documentation
+/docs/ @docs-team @maintainers
+/README.md @docs-team @maintainers
+/CHANGELOG.md @maintainers
+
+# Security and compliance
+/deny.toml @security-team @maintainers
+/.github/workflows/security.yml @security-team @maintainers
+
+# Dependencies
+/Cargo.toml @maintainers
+/Cargo.lock @maintainers
+
+# Release management
+/.github/workflows/release.yml @maintainers
+/.github/workflows/deploy.yml @devops-team @maintainers

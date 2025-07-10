@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 83c1bc474ff1951faef3661a98c78554c25134c5848091298826d927e3a89a26 # shrinks to code = "enum _ { Variant }"
+cc 8904698d4c49145e8b9ad53c108c207aed08f25ad1344653cac88bee6266e055 # shrinks to identifier = "_"
+cc 2c703760b7267791399bc5626c9ff5f2f3859a8cfbed3ceddc9811157833eaf0 # shrinks to code = "fn A() { }", config = ExtractorConfig { include_docs: false, include_private: false, parse_dependencies: false, max_file_size: 10485760, output_format: Json, filters: FilterConfig { include: [], exclude: [] }, plugins: [] }

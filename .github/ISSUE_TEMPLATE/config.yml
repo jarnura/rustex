@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://docs.rs/rustex-core
+    about: Check the documentation for usage guides and API reference
+  - name: 💬 Discussions
+    url: https://github.com/your-username/rustex/discussions
+    about: Ask questions and discuss features with the community
+  - name: 🔒 Security Issues
+    url: https://github.com/your-username/rustex/security/advisories
+    about: Report security vulnerabilities privately
+  - name: 📊 Performance Issues
+    url: https://github.com/your-username/rustex/issues/new?labels=performance&template=performance_issue.yml
+    about: Report performance problems or regressions
