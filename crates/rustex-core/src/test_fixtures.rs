@@ -3027,7 +3027,10 @@ pub struct MockDataGenerator;
 impl MockDataGenerator {
     /// Generate a mock CodeElement for testing.
     pub fn code_element(name: &str, element_type: ElementType) -> CodeElement {
+        let element_id = format!("{:?}_{}_{}", element_type, name, 1);
+        
         CodeElement {
+            id: element_id,
             element_type,
             name: name.to_string(),
             signature: Some(format!("fn {}() -> ()", name)),
@@ -3055,6 +3058,15 @@ impl MockDataGenerator {
             dependencies: vec![],
             generic_params: vec![],
             metadata: HashMap::new(),
+            hierarchy: ElementHierarchy::new_root(
+                "crate::test".to_string(),
+                format!("crate::test::{}", name),
+                ElementNamespace::new(
+                    name.to_string(),
+                    format!("crate::test::{}", name),
+                    &Visibility::Public,
+                ),
+            ),
         }
     }
 
@@ -3085,6 +3097,7 @@ impl MockDataGenerator {
                 enum_count: 0,
                 trait_count: 0,
             },
+            cross_references: vec![],
         }
     }
 
@@ -3125,6 +3138,7 @@ impl MockDataGenerator {
                 complexity_max: 10,
             },
             extracted_at: DateTime::<Utc>::from(std::time::SystemTime::now()),
+            cross_references: vec![],
         }
     }
 

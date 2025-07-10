@@ -40,9 +40,10 @@ fn default_max_file_size() -> usize {
 }
 
 /// Available output formats for AST data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum OutputFormat {
     /// JSON format
+    #[default]
     Json,
     /// MessagePack binary format
     MessagePack,
@@ -52,12 +53,6 @@ pub enum OutputFormat {
     GraphQL,
     /// RAG-optimized format
     Rag,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Json
-    }
 }
 
 /// File filtering configuration.

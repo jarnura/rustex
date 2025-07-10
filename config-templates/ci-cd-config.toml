@@ -1,0 +1,112 @@
+# RustEx Configuration for CI/CD Pipelines
+#
+# This configuration is optimized for automated builds and continuous integration.
+# It focuses on essential analysis while maintaining fast execution times.
+
+[extraction]
+# Include documentation for API analysis
+include_docs = true
+# Exclude private items to focus on public API
+include_private = false
+# Don't parse external dependencies for faster CI
+parse_dependencies = false
+# Output JSON for programmatic processing
+output_format = "json"
+# Include tests for comprehensive analysis
+include_tests = false
+# Limit file size to avoid processing generated files
+max_file_size = "10MB"
+
+[filters]
+# Include main source directories
+include = [
+    "src/**/*.rs",
+    "lib/**/*.rs",
+    "crates/**/*.rs"
+]
+
+# Exclude build artifacts, tests, and generated code
+exclude = [
+    "target/**",
+    "build/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+    "**/*_generated.rs",
+    "**/*_test.rs",
+    "vendor/**"
+]
+
+# Ignore large or binary-adjacent files
+ignore_patterns = [
+    "*.lock",
+    "*.log",
+    "*.tmp"
+]
+
+[output]
+# Compact output for smaller artifacts
+pretty_print = false
+# Include metrics for quality gates
+include_metrics = true
+# Include hierarchy for API structure analysis
+include_hierarchy = true
+# Include cross-references for dependency analysis
+include_cross_references = true
+
+[metrics]
+# Enable complexity analysis for quality gates
+calculate_complexity = true
+# Include LOC metrics
+include_loc = true
+# Include function metrics
+include_function_metrics = true
+
+[plugins]
+# Enable core analysis plugins for CI
+enabled = []
+
+[quality_gates]
+# Maximum average complexity allowed
+max_complexity_average = 10.0
+# Minimum documentation coverage for public APIs
+min_documentation_coverage = 0.75
+# Maximum complexity for individual functions
+max_function_complexity = 20
+# Maximum lines per function
+max_lines_per_function = 100
+
+[performance]
+# Optimize for CI environment
+parallel_processing = true
+# Cache parsed results when possible
+enable_caching = true
+# Timeout for large projects (in seconds)
+timeout = 300
+
+[error_handling]
+# Continue on non-critical errors in CI
+fail_on_parse_errors = false
+# Log warnings but don't fail build
+fail_on_warnings = false
+# Be strict about configuration errors
+fail_on_config_errors = true
+
+# Example usage in CI/CD:
+#
+# # Basic CI analysis
+# rustex extract --config ci-cd-config.toml --output ci-analysis.json
+#
+# # Quality gate checking
+# COMPLEXITY=$(jq '.metrics.complexity_average' ci-analysis.json)
+# if (( $(echo "$COMPLEXITY > 10.0" | bc -l) )); then
+#     echo "❌ Complexity too high: $COMPLEXITY"
+#     exit 1
+# fi
+#
+# # Documentation coverage check
+# DOC_COVERAGE=$(jq '.metrics.documentation_coverage' ci-analysis.json)
+# if (( $(echo "$DOC_COVERAGE < 0.75" | bc -l) )); then
+#     echo "❌ Documentation coverage too low: $DOC_COVERAGE"
+#     exit 1
+# fi

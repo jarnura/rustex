@@ -168,7 +168,7 @@ impl ComplexityCalculator {
         calc.lines_of_code = 1; // Will be improved with proper span handling
 
         // Visit method body if it exists
-        if let Some(ref block) = method.default.as_ref() {
+        if let Some(block) = method.default.as_ref() {
             calc.visit_block(block);
         }
 
@@ -463,11 +463,8 @@ impl<'ast> Visit<'ast> for ComplexityCalculator {
     }
 
     fn visit_stmt(&mut self, stmt: &'ast Stmt) {
-        match stmt {
-            Stmt::Local(_) => {
-                self.record_operator("let");
-            }
-            _ => {}
+        if let Stmt::Local(_) = stmt {
+            self.record_operator("let");
         }
 
         visit::visit_stmt(self, stmt);

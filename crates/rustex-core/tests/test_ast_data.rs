@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use rustex_core::{
-    CodeElement, CodeLocation, DependencyInfo, ElementType, FileAst, FileMetrics, ImportInfo,
+    CodeElement, CodeLocation, DependencyInfo, ElementHierarchy, ElementType, FileAst, FileMetrics, ImportInfo,
     ProjectAst, ProjectInfo, ProjectMetrics, Visibility,
 };
 use std::collections::HashMap;
@@ -33,6 +33,7 @@ fn test_project_ast_creation() {
         elements: vec![],
         imports: vec![],
         file_metrics,
+        cross_references: vec![],
     };
 
     let dependencies = DependencyInfo {
@@ -58,6 +59,7 @@ fn test_project_ast_creation() {
         dependencies,
         metrics,
         extracted_at: Utc::now(),
+        cross_references: vec![],
     };
 
     assert_eq!(project_ast.project.name, "test-project");
@@ -83,6 +85,7 @@ fn test_code_element_creation() {
     );
 
     let element = CodeElement {
+        id: "Function_test_function_1".to_string(),
         element_type: ElementType::Function,
         name: "test_function".to_string(),
         signature: Some("fn test_function() -> String".to_string()),
@@ -96,6 +99,15 @@ fn test_code_element_creation() {
         dependencies: vec!["std::string::String".to_string()],
         generic_params: vec!["T: Clone".to_string()],
         metadata,
+        hierarchy: ElementHierarchy::new_root(
+            "crate::test".to_string(),
+            "crate::test::test_function".to_string(),
+            rustex_core::ElementNamespace::new(
+                "test_function".to_string(),
+                "crate::test::test_function".to_string(),
+                &Visibility::Public,
+            ),
+        ),
     };
 
     assert_eq!(element.name, "test_function");

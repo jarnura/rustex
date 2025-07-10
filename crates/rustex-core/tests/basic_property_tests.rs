@@ -4,7 +4,7 @@
 //! to verify core functionality works with property-based testing.
 
 use proptest::prelude::*;
-use quickcheck::{Arbitrary, Gen, TestResult};
+use quickcheck::{Arbitrary, Gen};
 use rustex_core::{complexity::*, ElementType};
 use syn::{self, Item};
 

@@ -10,11 +10,14 @@ A comprehensive, high-performance tool for extracting Abstract Syntax Trees from
 
 - 🚀 **Fast & Efficient**: Parse entire Rust projects quickly using the `syn` crate
 - 📊 **Comprehensive**: Extract functions, structs, enums, traits, and more with full metadata
-- 🔌 **Extensible**: Plugin system for custom analysis (coming soon)
-- 📝 **Multiple Formats**: JSON, Markdown, and specialized RAG-optimized outputs
-- 🤖 **LLM Ready**: Optimized output formats for language models and RAG systems
-- 📈 **Analytics**: Code metrics and complexity analysis
-- ⚙️ **Configurable**: Flexible filtering and extraction options
+- 🔌 **Extensible**: Plugin system for custom analysis
+- 📝 **Multiple Formats**: JSON, Markdown, RAG, GraphQL, and MessagePack outputs
+- 🤖 **LLM Ready**: Specialized RAG-optimized formats for language models and embedding systems
+- 🧠 **AI Integration**: Intelligent chunking, semantic analysis, and training data generation
+- 🎯 **RAG Support**: Context-aware chunking, metadata enrichment, and embedding optimization
+- 📈 **Analytics**: Advanced code metrics, complexity analysis, and quality assessment
+- 🔍 **Cross-References**: Hierarchical relationships and namespace-aware element tracking
+- ⚙️ **Configurable**: Flexible filtering and extraction options with TOML configuration
 
 ## Quick Start
 
@@ -57,6 +60,9 @@ rustex extract --include "src/**/*.rs" --exclude "tests/**"
 
 # Extract private items and dependencies
 rustex extract --include-private --parse-deps
+
+# Generate RAG-optimized output
+rustex extract --format rag --output rag-data.json
 
 # Extract with plugins (coming soon)
 rustex extract --plugins llm-optimizer,rag-preprocessor
@@ -142,27 +148,72 @@ Structured data perfect for programmatic processing and LLM consumption:
 
 Human-readable documentation with metrics and code summaries.
 
+### RAG Format
+
+Optimized for Retrieval-Augmented Generation and LLM training:
+
+```json
+{
+  "metadata": {
+    "project_name": "my-project",
+    "chunking_strategy": "semantic",
+    "embedding_strategy": "combined"
+  },
+  "chunks": [
+    {
+      "id": "chunk_1",
+      "content": "/// Calculate fibonacci number\nfn fibonacci(n: u64) -> u64 { ... }",
+      "metadata": {
+        "element_type": "Function",
+        "complexity": 3,
+        "semantic_tags": ["algorithm", "recursive"],
+        "context_window": 512
+      },
+      "embeddings": {
+        "code_vector": [0.1, 0.2, ...],
+        "doc_vector": [0.3, 0.4, ...]
+      }
+    }
+  ],
+  "training_examples": [
+    {
+      "input": "Write a function to calculate fibonacci numbers",
+      "output": "fn fibonacci(n: u64) -> u64 { ... }",
+      "difficulty": "intermediate"
+    }
+  ]
+}
+```
+
 ## Development Status
 
 **Current Version:** 0.1.0 (Alpha)
 
 ### ✅ Completed Features
-- Core AST parsing infrastructure
-- Complete CLI interface with all commands
-- JSON output format
-- Basic file discovery and filtering
-- Configuration system
-- Progress indicators
+- ✅ Complete AST extraction for functions, structs, enums, traits, and modules
+- ✅ Hierarchical code structure analysis with parent-child relationships
+- ✅ Cross-reference resolution and tracking
+- ✅ Namespace-aware element naming with qualified paths
+- ✅ Comprehensive CLI interface with all commands
+- ✅ JSON, Markdown, and RAG output formats
+- ✅ RAG-optimized output with intelligent chunking and semantic analysis
+- ✅ Advanced file discovery and filtering with glob patterns
+- ✅ Configuration system with TOML support and use-case templates
+- ✅ Documentation extraction from doc comments
+- ✅ Import/use statement parsing and alias resolution
+- ✅ Complexity calculation (cyclomatic, cognitive, Halstead metrics)
+- ✅ Progress indicators and colored terminal output
+- ✅ Comprehensive error handling and recovery
+- ✅ Plugin system architecture
+- ✅ Test fixtures and property-based testing
+- ✅ Benchmark suite for performance testing
+- ✅ Working examples demonstrating all major features
 
 ### 🚧 In Progress
-- Full AST extraction implementation
-- Documentation extraction
-- Import/use statement parsing
-- Complexity calculation
+- 📚 Comprehensive documentation and examples
+- 🔌 Built-in plugins (complexity analysis, LLM optimization, documentation enhancement)
 
 ### 📋 Planned Features
-- Plugin system for extensibility
-- RAG-optimized output formats
 - Incremental parsing with caching
 - Parallel processing for large projects
 - Advanced complexity metrics
@@ -201,6 +252,42 @@ cargo test --test integration
 # Run benchmarks
 cargo bench
 ```
+
+## Examples
+
+The project includes comprehensive examples demonstrating all major features:
+
+### Basic Usage (`basic_usage.rs`)
+```bash
+cargo run --example basic_usage
+```
+Demonstrates fundamental AST extraction and JSON output.
+
+### Documentation Generator (`documentation_generator.rs`)
+```bash
+cargo run --example documentation_generator
+```
+Generates comprehensive project documentation with metrics and API reference.
+
+### Code Analyzer (`code_analyzer.rs`)
+```bash
+cargo run --example code_analyzer
+```
+Performs complexity analysis, quality assessment, and generates improvement recommendations.
+
+### LLM Data Preparation (`llm_data_prep.rs`)
+```bash
+cargo run --example llm_data_prep
+```
+Prepares training data for language models with chunking and Q&A generation.
+
+### RAG Output Demo (`rag_output_demo.rs`)
+```bash
+cargo run --example rag_output_demo
+```
+Demonstrates RAG-optimized output formats with semantic analysis and embedding preparation.
+
+All examples generate output files that demonstrate the capabilities of each format and use case.
 
 ## License
 

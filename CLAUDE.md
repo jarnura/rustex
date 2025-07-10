@@ -74,21 +74,26 @@ The project is organized as a Rust workspace with multiple crates:
 - ✅ Progress indicators and colored terminal output
 - ✅ Project infrastructure (README, licenses, .gitignore)
 
-### Phase 2: Core Implementation 🚧 IN PROGRESS
+### Phase 2: Core Implementation ✅ COMPLETED
 - ✅ AstExtractor with syn-based parsing
 - ✅ File discovery and filtering logic with glob patterns
 - ✅ JSON output formatting with actual AST data
 - ✅ Import/use statement parsing (basic implementation)
 - ✅ Progress indicators for CLI operations
 - ✅ Markdown output formatter
-- 🚧 CodeElementVisitor improvements (functions not being extracted)
-- ⏸️ Documentation extraction from doc comments
-- ⏸️ Error handling and recovery mechanisms
+- ✅ CodeElementVisitor with full element extraction
+- ✅ Documentation extraction from doc comments
+- ✅ Error handling and recovery mechanisms
+- ✅ Complexity calculation algorithms
+- ✅ Hierarchical relationships and cross-references
+- ✅ Namespace-aware element naming
 
-### Phase 3: Advanced Features ⏸️ PLANNED
-- ⏸️ Plugin system architecture
-- ⏸️ Multiple output formats (Markdown, RAG)
-- ⏸️ Complexity calculation algorithms
+### Phase 3: Advanced Features ✅ COMPLETED
+- ✅ Plugin system architecture
+- ✅ Multiple output formats (JSON, Markdown, RAG, GraphQL, MessagePack)
+- ✅ RAG-optimized output formats for LLM applications
+- ✅ Comprehensive testing suite with benchmarks
+- ✅ Complete documentation and examples
 - ⏸️ Incremental parsing with caching
 - ⏸️ Parallel processing support
 
@@ -126,6 +131,86 @@ The codebase uses `anyhow::Result` for error handling throughout, with structure
 
 ## Development Rules
 
+### Documentation Maintenance Rules
+
+**ALWAYS update related documentation when making changes.** This is a critical rule for maintaining project quality and usability.
+
+#### Rule 1: Code Changes Require Documentation Updates
+When making any code changes, immediately update all related documentation:
+
+- **API Changes** → Update `docs/api-reference.md` and relevant docstrings
+- **CLI Changes** → Update `README.md`, `docs/user-guide.md`, and `docs/cli-reference.md`
+- **New Features** → Update `README.md` features section, user guides, and examples
+- **Configuration Changes** → Update `docs/configuration-reference.md`
+- **Output Format Changes** → Update format-specific documentation
+- **Example Changes** → Update `examples/README.md` and relevant guides
+
+#### Rule 2: New Features Documentation Checklist
+Before marking any feature as complete, ensure:
+
+```bash
+□ README.md features section updated
+□ User guide includes new feature usage
+□ API reference documents new public APIs
+□ Configuration reference updated if applicable
+□ Examples created or updated to demonstrate feature
+□ Getting started guide mentions feature if user-facing
+□ Troubleshooting section updated with common issues
+```
+
+#### Rule 3: Example and Testing Updates
+When adding or fixing examples:
+
+```bash
+□ examples/README.md documents all examples
+□ Each example has clear description and usage
+□ Generated output files are documented
+□ Compilation requirements and dependencies listed
+□ Integration with docs/getting-started.md updated
+□ Troubleshooting section includes common issues
+```
+
+#### Rule 4: Dependency and Infrastructure Changes
+When adding dependencies or changing build process:
+
+```bash
+□ README.md installation section updated
+□ docs/getting-started.md setup instructions updated
+□ CI/CD documentation reflects new requirements
+□ Docker or container setup updated if applicable
+□ Development setup instructions in CLAUDE.md updated
+```
+
+#### Rule 5: Breaking Changes Documentation
+For any breaking changes:
+
+```bash
+□ Migration guide created or updated
+□ CHANGELOG.md entry added
+□ Version compatibility documented
+□ Examples updated to work with new version
+□ Deprecation notices added where appropriate
+```
+
+#### Enforcement Commands
+```bash
+# Check documentation is current after changes
+git diff --name-only | grep -E '\.(rs|toml)$' && echo "⚠️  Code changed - check docs!"
+
+# Validate all examples still work
+cargo check --examples && echo "✅ Examples compile"
+
+# Ensure documentation builds
+# (Add doc build commands here when available)
+```
+
+#### Documentation Quality Standards
+- **Be Comprehensive**: Cover all features and edge cases
+- **Be Current**: Update immediately when code changes
+- **Be Accessible**: Write for users at different skill levels
+- **Be Consistent**: Follow established documentation patterns
+- **Be Tested**: Ensure examples and instructions actually work
+
 ### Critical Rule: Fix Before Proceeding
 **NEVER proceed to the next task if the current step has compilation errors or issues.** 
 
@@ -136,6 +221,34 @@ When implementing any feature:
 4. **Only then** proceed to the next task in the todo list
 
 This prevents cascading issues and maintains code quality throughout development.
+
+### Warning Policy: Treat Warnings as Errors
+**All compiler warnings must be resolved before proceeding.** This includes:
+
+1. **Unused imports** - Remove or use conditional compilation attributes
+2. **Dead code warnings** - Remove unused code or add `#[allow(dead_code)]` if intentional
+3. **Clippy warnings** - Follow clippy suggestions or add targeted allows with justification
+4. **Any other warnings** - Address root cause rather than suppress
+
+#### Enforcement Commands
+```bash
+# Check for warnings (should produce no output)
+cargo check 2>&1 | grep warning && echo "❌ Warnings found" || echo "✅ No warnings"
+
+# Build with warnings as errors for CI
+cargo build --workspace -- -D warnings
+
+# Clippy with warnings as errors
+cargo clippy --workspace -- -D warnings
+```
+
+#### When to Allow Warnings
+Only use `#[allow(...)]` attributes when:
+- Intentional design decision (document why)
+- External crate compatibility requirements
+- Generated code that can't be modified
+
+Always include a comment explaining why the warning is allowed.
 
 ## Common Tasks
 
@@ -156,6 +269,25 @@ This prevents cascading issues and maintains code quality throughout development
 - Integration tests with sample Rust projects
 - Benchmark tests for performance regression
 - End-to-end CLI testing
+- **5 Working Examples**: All examples compile and run successfully
+  - `basic_usage.rs` - Demonstrates core AST extraction
+  - `documentation_generator.rs` - Shows markdown documentation generation
+  - `code_analyzer.rs` - Quality analysis with complexity metrics
+  - `llm_data_prep.rs` - LLM training data preparation
+  - `rag_output_demo.rs` - RAG format demonstrations
+
+### Running Examples
+```bash
+# From rustex-core crate
+cargo run --example basic_usage
+cargo run --example documentation_generator
+cargo run --example code_analyzer
+cargo run --example llm_data_prep
+
+# From rustex-formats crate
+cd crates/rustex-formats
+cargo run --example rag_output_demo
+```
 
 ### Fixing Compilation Issues
 When encountering compilation errors:

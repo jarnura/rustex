@@ -127,21 +127,14 @@ proptest! {
                     
                     // Basic bounds
                     prop_assert!(metrics.cyclomatic >= 1, "Cyclomatic complexity must be at least 1");
-                    prop_assert!(metrics.cognitive >= 0, "Cognitive complexity cannot be negative");
-                    prop_assert!(metrics.nesting_depth >= 0, "Nesting depth cannot be negative");
                     prop_assert!(metrics.lines_of_code > 0, "Function must have at least one line");
-                    prop_assert!(metrics.parameter_count >= 0, "Parameter count cannot be negative");
-                    prop_assert!(metrics.return_count >= 0, "Return count cannot be negative");
+                    // Note: cognitive, nesting_depth, parameter_count, return_count are unsigned types so >= 0 is implicit
                     
                     // Logical relationships
                     prop_assert!(metrics.cognitive >= metrics.cyclomatic - 1, 
                                "Cognitive complexity should generally be >= cyclomatic - 1");
                     
-                    // Halstead metrics bounds
-                    prop_assert!(metrics.halstead.big_n1 >= 0);
-                    prop_assert!(metrics.halstead.big_n2 >= 0);
-                    prop_assert!(metrics.halstead.n1 >= 0);
-                    prop_assert!(metrics.halstead.n2 >= 0);
+                    // Halstead metrics bounds - these are unsigned types so >= 0 is implicit
                     prop_assert!(metrics.halstead.n1 <= metrics.halstead.big_n1);
                     prop_assert!(metrics.halstead.n2 <= metrics.halstead.big_n2);
                     
@@ -397,7 +390,7 @@ mod specific_complexity_tests {
             fn standalone() -> i32 { 42 }
         ";
         
-        let parsed = syn::parse_file(code).unwrap();
+        let _parsed = syn::parse_file(code).unwrap();
         let structural_metrics = ComplexityCalculator::calculate_structural_complexity(&Item::Struct(
             syn::parse_str("struct TestStruct { field: i32, }").unwrap()
         ));

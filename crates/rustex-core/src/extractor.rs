@@ -83,6 +83,12 @@ impl AstExtractor {
         }
 
         let dependencies = self.extract_dependencies()?;
+        
+        // Collect all cross-references from files
+        let mut all_cross_references = Vec::new();
+        for file in &files {
+            all_cross_references.extend(file.cross_references.clone());
+        }
 
         Ok(ProjectAst {
             project: project_info,
@@ -90,6 +96,7 @@ impl AstExtractor {
             dependencies,
             metrics: project_metrics,
             extracted_at: chrono::Utc::now(),
+            cross_references: all_cross_references,
         })
     }
 
@@ -99,7 +106,7 @@ impl AstExtractor {
 
         if cargo_toml_path.exists() {
             let cargo_content =
-                fs::read_to_string(&cargo_toml_path).map_err(|e| RustExError::Io(e))?;
+                fs::read_to_string(&cargo_toml_path).map_err(RustExError::Io)?;
 
             // Simple parsing - in a real implementation, we'd use a TOML parser
             let name = extract_toml_field(&cargo_content, "name")
@@ -142,10 +149,8 @@ impl AstExtractor {
         {
             let path = entry.path();
 
-            if path.extension().and_then(|s| s.to_str()) == Some("rs") {
-                if self.should_include_file(path) {
-                    rust_files.push(path.to_path_buf());
-                }
+            if path.extension().and_then(|s| s.to_str()) == Some("rs") && self.should_include_file(path) {
+                rust_files.push(path.to_path_buf());
             }
         }
 
@@ -208,10 +213,14 @@ impl AstExtractor {
             .to_path_buf();
 
         let mut visitor = CodeElementVisitor::new(file_path.to_path_buf(), &self.config);
+        
+        // Extract imports first so they can be processed during AST traversal
+        let imports = extract_imports(&syntax_tree);
+        visitor.process_imports(&imports);
+        
         visitor.visit_file(&syntax_tree);
 
-        let elements = visitor.into_elements();
-        let imports = extract_imports(&syntax_tree);
+        let (elements, cross_references) = visitor.into_elements_and_references();
         let file_metrics = calculate_file_metrics(&content, &elements);
 
         Ok(FileAst {
@@ -220,6 +229,7 @@ impl AstExtractor {
             elements,
             imports,
             file_metrics,
+            cross_references,
         })
     }
 
@@ -298,8 +308,7 @@ fn glob_match(pattern: &str, text: &str) -> bool {
     if pattern.contains("**") {
         let prefix = pattern.split("**").next().unwrap_or("");
         text.contains(prefix)
-    } else if pattern.ends_with("*") {
-        let prefix = &pattern[..pattern.len() - 1];
+    } else if let Some(prefix) = pattern.strip_suffix("*") {
         text.starts_with(prefix)
     } else {
         text.contains(pattern)

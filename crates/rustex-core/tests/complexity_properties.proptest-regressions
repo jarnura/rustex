@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc e41aff55eea7b48260d5164d50cbfe4b850ca09d11c3a4db5d0e9d03f68599b1 # shrinks to code = "fn simple() -> i32 { 42 }"

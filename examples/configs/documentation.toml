@@ -1,0 +1,106 @@
+# RustEx Configuration for Documentation Generation
+# This configuration is optimized for generating comprehensive project documentation
+
+[extraction]
+# Include all documentation comments
+include_docs = true
+
+# Include private items for internal documentation
+include_private = true
+
+# Don't parse dependencies to focus on project code
+parse_dependencies = false
+
+# Use markdown format for readable output
+output_format = "markdown"
+
+# Don't include test code in documentation
+include_tests = false
+
+# Include constants and type aliases
+include_constants = true
+include_type_aliases = true
+
+# Include macros in documentation
+include_macros = true
+
+# Process files up to 20MB
+max_file_size = "20MB"
+
+[filters]
+# Include source and library code
+include = [
+    "src/**/*.rs",
+    "lib/**/*.rs"
+]
+
+# Exclude test, benchmark, and build artifacts
+exclude = [
+    "target/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+    "**/*_test.rs",
+    "**/test_*.rs"
+]
+
+# Include hidden files like .cargo/config
+include_hidden = false
+
+# Follow symbolic links
+follow_symlinks = false
+
+[output]
+# Pretty print for readability
+pretty_print = true
+
+# Include comprehensive metrics
+include_metrics = true
+
+# Include cross-references for better navigation
+include_cross_references = true
+
+# Include hierarchy information
+include_hierarchy = true
+
+# Include file paths for reference
+include_file_paths = true
+
+[output.markdown]
+# Include table of contents
+include_toc = true
+
+# Deep table of contents
+toc_depth = 4
+
+# Enable syntax highlighting in code blocks
+syntax_highlighting = true
+
+# Use GitHub-flavored markdown
+dialect = "github"
+
+# Include file paths as headers
+file_headers = true
+
+# Include metrics summary at the top
+include_summary = true
+
+[plugins]
+# Enable documentation enhancement plugin
+enabled = ["doc-enhancer"]
+
+[plugins.doc-enhancer]
+# Use standard Rust documentation style
+style = "rust-standard"
+
+# Require high documentation coverage
+min_coverage = 0.8
+
+# Don't auto-generate missing docs (keep manual control)
+auto_generate = false
+
+# Include examples in documentation when available
+include_examples = true
+
+# Validate documentation links
+validate_links = true

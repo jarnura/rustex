@@ -1,0 +1,132 @@
+# RustEx Configuration for LLM Training Data Preparation
+# This configuration is optimized for creating high-quality training data for language models
+
+[extraction]
+# Include documentation for context and examples
+include_docs = true
+
+# Focus on public API for cleaner training data
+include_private = false
+
+# Parse dependencies to understand usage patterns
+parse_dependencies = true
+
+# Use RAG format optimized for LLM consumption
+output_format = "rag"
+
+# Exclude test code from training data
+include_tests = false
+
+# Include constants and type aliases for completeness
+include_constants = true
+include_type_aliases = true
+
+# Include macros as they're important Rust patterns
+include_macros = true
+
+# Limit file size to avoid overwhelming chunks
+max_file_size = "5MB"
+
+# Include inline comments for additional context
+include_inline_comments = true
+
+[filters]
+# Include source code and examples (good training material)
+include = [
+    "src/**/*.rs",
+    "lib/**/*.rs", 
+    "examples/**/*.rs"
+]
+
+# Exclude test files, benchmarks, and build artifacts
+exclude = [
+    "target/**",
+    "tests/**",
+    "benches/**",
+    "**/*_test.rs", 
+    "**/test_*.rs",
+    "**/generated/**",
+    "vendor/**"
+]
+
+# Don't include hidden files
+include_hidden = false
+
+# Don't follow symlinks to avoid duplicates
+follow_symlinks = false
+
+# Minimum file size to avoid trivial files
+min_file_size = 100
+
+[output]
+# Don't pretty print for more compact data
+pretty_print = false
+
+# Include metrics for training metadata
+include_metrics = true
+
+# Include hierarchy for understanding code organization
+include_hierarchy = true
+
+# Include source snippets for examples
+include_source_snippets = true
+
+# Limit snippet length for context windows
+max_snippet_length = 500
+
+# Include cross-references for relationship learning
+include_cross_references = true
+
+[output.rag]
+# Optimize chunk size for typical LLM context windows
+max_chunk_size = 1000
+
+# Provide overlap for context continuity
+chunk_overlap = 100
+
+# Include semantic metadata for better retrieval
+include_semantics = true
+
+# Include surrounding code context
+include_context = true
+
+# Use embeddings for similarity
+embedding_model = "text-embedding-ada-002"
+
+# Group related elements together
+semantic_grouping = true
+
+[plugins]
+# Enable LLM optimization plugin
+enabled = ["llm-optimizer"]
+
+[plugins.llm-optimizer]
+# Target GPT-4 token limits
+target_model = "gpt-4"
+
+# Conservative context length to allow for prompts
+max_context_length = 6000
+
+# Include hints for training
+include_training_hints = true
+
+# Use semantic overlap for better continuity
+overlap_strategy = "semantic"
+
+# Include code patterns and idioms
+include_patterns = true
+
+# Generate question-answer pairs from documentation
+generate_qa_pairs = true
+
+# Include difficulty levels for progressive training
+include_difficulty_levels = true
+
+# Add training metadata
+training_metadata = {
+    "language" = "rust",
+    "domain" = "systems_programming", 
+    "complexity_level" = "intermediate",
+    "includes_docs" = true,
+    "includes_examples" = true
+}

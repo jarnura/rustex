@@ -8,7 +8,6 @@ mod test_utils;
 use rustex_core::test_fixtures::*;
 use rustex_core::*;
 use test_utils::*;
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_complete_extraction_workflow() {
@@ -24,15 +23,15 @@ async fn test_complete_extraction_workflow() {
     
     // Check that different element types were extracted
     let mut has_functions = false;
-    let mut has_structs = false;
-    let mut has_enums = false;
+    let mut _has_structs = false;
+    let mut _has_enums = false;
     
     for file in &project_ast.files {
         for element in &file.elements {
             match element.element_type {
                 ElementType::Function => has_functions = true,
-                ElementType::Struct => has_structs = true,
-                ElementType::Enum => has_enums = true,
+                ElementType::Struct => _has_structs = true,
+                ElementType::Enum => _has_enums = true,
                 _ => {}
             }
         }
@@ -74,17 +73,17 @@ async fn test_edge_case_handling() {
             validate_complete_extraction(&project_ast);
             
             // Check for specific edge case handling
-            let mut has_empty_file = false;
-            let mut has_unicode_content = false;
+            let mut _has_empty_file = false;
+            let mut _has_unicode_content = false;
             
             for file in &project_ast.files {
                 if file.elements.is_empty() {
-                    has_empty_file = true;
+                    _has_empty_file = true;
                 }
                 
                 for element in &file.elements {
                     if element.name.contains("函数") || element.name.contains("变量") {
-                        has_unicode_content = true;
+                        _has_unicode_content = true;
                     }
                 }
             }
@@ -130,7 +129,7 @@ fn test_configuration_variations() {
     
     for (i, config) in test_configs.iter().enumerate() {
         let fixture = TestFixtureBuilder::new()
-            .with_project_name(&format!("config-test-{}", i))
+            .with_project_name(format!("config-test-{}", i))
             .with_file("lib.rs", r#"
 /// Public function with documentation.
 pub fn public_function() -> u32 {
@@ -161,7 +160,7 @@ mod tests {
             .filter(|e| e.element_type == ElementType::Function && e.visibility == Visibility::Public)
             .count();
         
-        let private_functions = project_ast.files.iter()
+        let _private_functions = project_ast.files.iter()
             .flat_map(|f| &f.elements)
             .filter(|e| e.element_type == ElementType::Function && e.visibility == Visibility::Private)
             .count();
@@ -284,7 +283,7 @@ async fn test_concurrent_extraction() {
     let fixtures = (0..3)
         .map(|i| {
             TestFixtureBuilder::new()
-                .with_project_name(&format!("concurrent-test-{}", i))
+                .with_project_name(format!("concurrent-test-{}", i))
                 .with_file("lib.rs", &format!("pub fn function_{}() -> u32 {{ {} }}", i, i))
                 .build()
         })
@@ -314,8 +313,8 @@ fn test_fixture_builder_chaining() {
     
     let fixture = TestFixtureBuilder::new()
         .with_project_name("chaining-test")
-        .with_file("first.rs", samples.simple_function.clone())
-        .with_file("second.rs", samples.complex_function.clone())
+        .with_file("first.rs", &samples.simple_function)
+        .with_file("second.rs", &samples.complex_function)
         .with_config(create_test_config(true, true))
         .build();
     

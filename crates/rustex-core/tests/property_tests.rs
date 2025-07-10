@@ -175,17 +175,9 @@ proptest! {
                     
                     // Complexity invariants
                     prop_assert!(metrics.cyclomatic >= 1, "Cyclomatic complexity must be at least 1");
-                    prop_assert!(metrics.cognitive >= 0, "Cognitive complexity cannot be negative");
-                    prop_assert!(metrics.nesting_depth >= 0, "Nesting depth cannot be negative");
-                    prop_assert!(metrics.lines_of_code >= 0, "Lines of code cannot be negative");
-                    prop_assert!(metrics.parameter_count >= 0, "Parameter count cannot be negative");
-                    prop_assert!(metrics.return_count >= 0, "Return count cannot be negative");
+                    // Note: Other metrics are unsigned types, so non-negative checks are implicit
                     
-                    // Halstead metrics invariants
-                    prop_assert!(metrics.halstead.big_n1 >= 0);
-                    prop_assert!(metrics.halstead.big_n2 >= 0);
-                    prop_assert!(metrics.halstead.n1 >= 0);
-                    prop_assert!(metrics.halstead.n2 >= 0);
+                    // Halstead metrics invariants - these are also unsigned, so >= 0 is implicit
                     
                     // Logical relationships
                     prop_assert!(metrics.halstead.n1 <= metrics.halstead.big_n1);
@@ -237,10 +229,11 @@ fn test_element_creation() {
     let visibility = Visibility::Public;
 
     let element = CodeElement {
+        id: format!("{:?}_{}_{}", element_type, name, 1),
         element_type,
         name: name.clone(),
         signature: Some(format!("signature for {}", name)),
-        visibility,
+        visibility: visibility.clone(),
         doc_comments: vec![],
         inline_comments: vec![],
         location: CodeLocation {
@@ -256,6 +249,15 @@ fn test_element_creation() {
         dependencies: vec![],
         generic_params: vec![],
         metadata: HashMap::new(),
+        hierarchy: ElementHierarchy::new_root(
+            "crate::test".to_string(),
+            format!("crate::test::{}", name),
+            ElementNamespace::new(
+                name.to_string(),
+                format!("crate::test::{}", name),
+                &visibility,
+            ),
+        ),
     };
 
     assert_eq!(element.name, name);
@@ -292,11 +294,7 @@ fn test_complexity_bounds() {
     };
 
     assert!(metrics.cyclomatic >= 1);
-    assert!(metrics.cognitive >= 0);
-    assert!(metrics.nesting_depth >= 0);
-    assert!(metrics.lines_of_code >= 0);
-    assert!(metrics.parameter_count >= 0);
-    assert!(metrics.return_count >= 0);
+    // Note: Other metrics are unsigned types, so >= 0 checks are implicit
 }
 
 // Edge case property tests

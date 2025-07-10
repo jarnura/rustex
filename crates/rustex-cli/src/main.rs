@@ -5,7 +5,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use rustex_core::{AstExtractor, ConfigUseCase, ExtractorConfig, OutputFormat};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{error, info};
 
 #[derive(Parser)]
@@ -219,14 +219,16 @@ async fn main() -> Result<()> {
             // Override with CLI arguments
             override_config_with_cli_args(
                 &mut config,
-                format.into(),
-                include_docs,
-                include_private,
-                parse_deps,
-                max_file_size,
-                include,
-                exclude,
-                plugins,
+                CliOverrides {
+                    format: format.into(),
+                    include_docs,
+                    include_private,
+                    parse_deps,
+                    max_file_size,
+                    include_patterns: include,
+                    exclude_patterns: exclude,
+                    plugins,
+                },
             );
 
             extract_command(cli.path, config, output, pretty).await?;
@@ -295,7 +297,16 @@ async fn extract_command(
                     println!("✓ Output written to {}", path.display());
                 }
                 None => {
-                    println!("{}", output_content);
+                    // Handle broken pipe gracefully (e.g., when piping to `head`)
+                    use std::io::Write;
+                    if let Err(e) = std::io::stdout().write_all(output_content.as_bytes()) {
+                        if e.kind() == std::io::ErrorKind::BrokenPipe {
+                            // Broken pipe is normal when using tools like `head` - exit gracefully
+                            std::process::exit(0);
+                        } else {
+                            return Err(e.into());
+                        }
+                    }
                 }
             }
 
@@ -420,7 +431,7 @@ async fn config_command(action: ConfigAction, global_config_path: Option<&PathBu
 }
 
 /// Load configuration from file or use defaults.
-fn load_config(config_path: &Option<PathBuf>, project_path: &PathBuf) -> Result<ExtractorConfig> {
+fn load_config(config_path: &Option<PathBuf>, project_path: &Path) -> Result<ExtractorConfig> {
     if let Some(path) = config_path {
         // Use explicitly provided config file
         ExtractorConfig::from_toml_file(path)
@@ -446,9 +457,8 @@ fn load_config(config_path: &Option<PathBuf>, project_path: &PathBuf) -> Result<
     }
 }
 
-/// Override configuration with CLI arguments.
-fn override_config_with_cli_args(
-    config: &mut ExtractorConfig,
+/// CLI arguments for overriding configuration.
+struct CliOverrides {
     format: OutputFormat,
     include_docs: bool,
     include_private: bool,
@@ -457,37 +467,40 @@ fn override_config_with_cli_args(
     include_patterns: Vec<String>,
     exclude_patterns: Vec<String>,
     plugins: Vec<String>,
-) {
+}
+
+/// Override configuration with CLI arguments.
+fn override_config_with_cli_args(config: &mut ExtractorConfig, overrides: CliOverrides) {
     // Only override if CLI args were explicitly provided
     // For most args, clap provides default values, so we check against defaults
 
     // Always override format if provided
-    config.output_format = format;
+    config.output_format = overrides.format;
 
     // These need special handling as clap provides false as default
     // In a real implementation, you'd use Option<bool> and check for Some(value)
-    config.include_docs = include_docs;
-    config.include_private = include_private;
-    config.parse_dependencies = parse_deps;
+    config.include_docs = overrides.include_docs;
+    config.include_private = overrides.include_private;
+    config.parse_dependencies = overrides.parse_deps;
 
     // Override file size if not default
-    if max_file_size != 10485760 {
+    if overrides.max_file_size != 10485760 {
         // 10MB default
-        config.max_file_size = max_file_size;
+        config.max_file_size = overrides.max_file_size;
     }
 
     // Override patterns if provided
-    if !include_patterns.is_empty() {
-        config.filters.include = include_patterns;
+    if !overrides.include_patterns.is_empty() {
+        config.filters.include = overrides.include_patterns;
     }
 
-    if !exclude_patterns.is_empty() {
-        config.filters.exclude = exclude_patterns;
+    if !overrides.exclude_patterns.is_empty() {
+        config.filters.exclude = overrides.exclude_patterns;
     }
 
     // Override plugins if provided
-    if !plugins.is_empty() {
-        config.plugins = plugins;
+    if !overrides.plugins.is_empty() {
+        config.plugins = overrides.plugins;
     }
 }
 
@@ -563,8 +576,8 @@ fn generate_markdown_output(ast_data: &rustex_core::ProjectAst) -> Result<String
             if !file.elements.is_empty() {
                 for element in &file.elements {
                     output.push_str(&format!(
-                        "#### {} `{}`\n\n",
-                        format!("{:?}", element.element_type),
+                        "#### {:?} `{}`\n\n",
+                        element.element_type,
                         element.name
                     ));
 
@@ -573,7 +586,7 @@ fn generate_markdown_output(ast_data: &rustex_core::ProjectAst) -> Result<String
                         for doc in &element.doc_comments {
                             output.push_str(&format!("> {}\n", doc));
                         }
-                        output.push_str("\n");
+                        output.push('\n');
                     }
 
                     if let Some(ref signature) = element.signature {

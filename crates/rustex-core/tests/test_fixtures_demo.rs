@@ -129,8 +129,8 @@ async fn test_extractor_with_fixtures() {
     let samples = SampleCode::new();
     let fixture = TestFixtureBuilder::new()
         .with_project_name("extractor-test")
-        .with_file("simple.rs", samples.simple_function.clone())
-        .with_file("complex.rs", samples.complex_function.clone())
+        .with_file("simple.rs", &samples.simple_function)
+        .with_file("complex.rs", &samples.complex_function)
         .with_config(MockDataGenerator::test_config())
         .build();
 

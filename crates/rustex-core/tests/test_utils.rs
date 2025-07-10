@@ -5,7 +5,6 @@
 
 use rustex_core::test_fixtures::*;
 use rustex_core::*;
-use std::path::PathBuf;
 use tempfile::TempDir;
 
 /// Helper function to create a minimal test project with basic structure.
@@ -71,7 +70,7 @@ pub fn create_error_test_project() -> TestFixture {
         .with_project_name("error-test");
     
     for (name, code) in error_scenarios {
-        builder = builder.with_file(&format!("{}.rs", name), code);
+        builder = builder.with_file(&format!("{}.rs", name), &code);
     }
     
     builder.build()
@@ -84,7 +83,7 @@ pub fn create_edge_case_project() -> TestFixture {
         .with_project_name("edge-case-test");
     
     for (name, code) in edge_cases {
-        builder = builder.with_file(&format!("{}.rs", name), code);
+        builder = builder.with_file(&format!("{}.rs", name), &code);
     }
     
     builder.build()
@@ -328,7 +327,7 @@ pub fn benchmark_extraction_performance(
                 2 => &samples.struct_with_fields,
                 _ => &samples.enum_with_variants,
             };
-            fixture.add_file(&format!("file_{}.rs", i), content.clone());
+            fixture.add_file(&format!("file_{}.rs", i), content);
         }
         
         // Time the extraction

@@ -28,6 +28,7 @@ tempfile = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true }
 criterion = { workspace = true }
+colored = { workspace = true }
 rmp-serde = "1.0"
 async-trait = "0.1"
 rand = "0.8"
@@ -40,3 +41,19 @@ quickcheck = "1.0"
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[[example]]
+name = "basic_usage"
+path = "../../examples/basic_usage.rs"
+
+[[example]]
+name = "documentation_generator"
+path = "../../examples/documentation_generator.rs"
+
+[[example]]
+name = "code_analyzer" 
+path = "../../examples/code_analyzer.rs"
+
+[[example]]
+name = "llm_data_prep"
+path = "../../examples/llm_data_prep.rs"
