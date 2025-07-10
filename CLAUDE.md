@@ -131,6 +131,109 @@ The codebase uses `anyhow::Result` for error handling throughout, with structure
 
 ## Development Rules
 
+### Git Commit Hygiene Rules
+
+**MANDATORY: Every completed task must have a corresponding git commit.** This ensures proper progress tracking and maintains a clean development history.
+
+#### Rule 1: Task-Based Commits
+For every task completion:
+
+```bash
+# 1. Complete the task implementation
+# 2. Test thoroughly (build, test, examples)
+# 3. Update related documentation
+# 4. Stage all changes
+git add .
+
+# 5. Commit with descriptive message
+git commit -m "$(cat <<'EOF'
+Complete Task [ID]: [Brief Description]
+
+- [Specific change 1]
+- [Specific change 2] 
+- [Documentation updates]
+- [Tests/examples updated]
+EOF
+)"
+```
+
+#### Rule 2: Commit Message Format
+Use this standardized format for all commits:
+
+```
+Complete Task [ID]: [Brief Description]
+
+- Bullet point of main changes
+- Documentation updates made
+- Tests or examples modified
+- Any breaking changes noted
+
+```
+
+**Examples:**
+```bash
+# Example 1: Feature implementation
+git commit -m "Complete Task 44: Implement PostgreSQL Database Schema
+
+- Add database schema with ast_nodes, call_relationships, dependencies tables
+- Create optimized indexes for graph traversal queries
+- Add JSONB columns for flexible metadata storage
+- Update documentation with schema design
+- Add migration examples
+
+# Example 2: Bug fix
+git commit -m "Complete Task 25: Add RAG-optimized output formats
+
+- Implement RAG document structure with semantic analysis
+- Add intelligent chunking strategies (fixed, semantic, adaptive)
+- Create training example generation for LLM fine-tuning
+- Update examples with rag_output_demo.rs
+- Enhance documentation with RAG format specification
+```
+
+#### Rule 3: Pre-Commit Checklist
+Before each commit, verify:
+
+```bash
+□ Task is 100% complete and functional
+□ All compilation errors resolved
+□ All warnings addressed (cargo clippy passes)
+□ Tests pass: cargo test --workspace
+□ Examples compile: cargo check --examples
+□ Documentation updated for any user-facing changes
+□ No temporary/debug code left in
+□ Commit message follows standard format
+```
+
+#### Rule 4: Commit Timing
+- **Complete tasks individually** - Don't bundle multiple tasks in one commit
+- **Commit immediately** after task completion - Don't accumulate changes
+- **Small, focused commits** - Each commit should represent one logical unit of work
+- **Working state only** - Never commit broken or half-finished code
+
+#### Rule 5: Todo List Synchronization
+After each commit:
+
+```bash
+# 1. Update todo status
+# 2. Mark task as completed in TodoWrite
+# 3. Verify todo list reflects current state
+# 4. Proceed to next task
+```
+
+#### Enforcement Commands
+```bash
+# Pre-commit validation
+cargo build --workspace && \
+cargo test --workspace && \
+cargo clippy --workspace -- -D warnings && \
+cargo check --examples && \
+echo "✅ Ready to commit"
+
+# Check for uncommitted changes before starting new task
+git status --porcelain | grep -q . && echo "⚠️  Uncommitted changes - commit first!" || echo "✅ Clean working directory"
+```
+
 ### Documentation Maintenance Rules
 
 **ALWAYS update related documentation when making changes.** This is a critical rule for maintaining project quality and usability.

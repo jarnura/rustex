@@ -42,6 +42,7 @@ struct CodeAnalysis {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)] // Used in analysis reporting
 struct ComplexFunction {
     name: String,
     complexity: u32,

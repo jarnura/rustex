@@ -318,6 +318,7 @@ mod tests {
     use std::path::PathBuf;
     use std::collections::HashMap;
 
+    #[allow(dead_code)] // Used in tests
     fn create_test_element(name: &str, complexity_score: u32) -> CodeElement {
         use rustex_core::{ElementHierarchy, ElementNamespace};
         

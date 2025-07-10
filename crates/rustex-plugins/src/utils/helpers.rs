@@ -307,7 +307,7 @@ impl ConfigHelpers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustex_core::{CodeElement, CodeLocation, Visibility, ComplexityMetrics, HalsteadMetrics};
+    use rustex_core::{CodeElement, CodeLocation, Visibility};
     use std::path::PathBuf;
 
     fn create_test_element(name: &str, element_type: ElementType, complexity: Option<u32>) -> CodeElement {

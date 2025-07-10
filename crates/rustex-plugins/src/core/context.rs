@@ -253,9 +253,9 @@ impl<'a> PostProcessContext<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustex_core::{ProjectInfo, FileAst, ProjectMetrics, DependencyInfo};
+    use rustex_core::ProjectInfo;
     use std::path::PathBuf;
-    use chrono::Utc;
+    // use chrono::Utc; // Unused import removed
 
     fn create_test_project_info() -> ProjectInfo {
         ProjectInfo {
