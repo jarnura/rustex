@@ -39,6 +39,7 @@ pub mod schema;
 pub mod migrations;
 pub mod connection;
 pub mod storage;
+pub mod graph_storage;
 pub mod query;
 pub mod error;
 
@@ -49,6 +50,7 @@ pub use error::{DatabaseError, Result};
 pub use connection::{DatabaseManager, ConnectionPool};
 pub use schema::{DbConfig, ProjectRecord, FileRecord, ElementRecord};
 pub use storage::{AstStorage, ProjectStorage, ElementStorage};
+pub use graph_storage::{GraphStorage, CallChainStats, DependencyStats, TypeRelationshipStats};
 
 #[cfg(feature = "graph-algorithms")]
 pub use graph::{GraphTraversal, CallChainAnalyzer, DependencyAnalyzer};
@@ -59,6 +61,7 @@ pub mod prelude {
         DatabaseManager, DatabaseError, Result,
         schema::{DbConfig, ProjectRecord, FileRecord, ElementRecord},
         storage::{AstStorage, ProjectStorage, ElementStorage},
+        graph_storage::{GraphStorage, CallChainStats, DependencyStats, TypeRelationshipStats},
         query::{RustexQueryBuilder, GraphQuery},
     };
     
