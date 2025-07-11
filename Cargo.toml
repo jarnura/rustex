@@ -4,7 +4,8 @@ members = [
     "crates/rustex-core",
     "crates/rustex-cli", 
     "crates/rustex-plugins",
-    "crates/rustex-formats"
+    "crates/rustex-formats",
+    "crates/rustex-db"
 ]
 
 [workspace.dependencies]
@@ -27,6 +28,11 @@ toml = "0.8"
 dirs = "5.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 tempfile = "3.0"
+# Database dependencies
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+petgraph = "0.6"
+md5 = "0.7"
 
 [workspace.metadata.docs.rs]
 all-features = true
