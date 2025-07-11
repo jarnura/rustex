@@ -606,6 +606,7 @@ impl GraphStorage {
 
 /// Element information for graph building
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ElementInfo {
     id: String,
     name: String,
@@ -676,18 +677,18 @@ pub struct TypeRelationshipStats {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_determine_call_type() {
-        let graph_storage = GraphStorage::new(PgPool::connect("postgresql://test").unwrap());
+    #[tokio::test]
+    async fn test_determine_call_type() {
+        let graph_storage = GraphStorage::new(PgPool::connect("postgresql://test").await.unwrap());
         
         assert_eq!(graph_storage.determine_call_type("MyStruct::new()"), "static");
         assert_eq!(graph_storage.determine_call_type("instance.method()"), "method");
         assert_eq!(graph_storage.determine_call_type("function_call()"), "direct");
     }
 
-    #[test]
-    fn test_extract_generic_constraints() {
-        let graph_storage = GraphStorage::new(PgPool::connect("postgresql://test").unwrap());
+    #[tokio::test]
+    async fn test_extract_generic_constraints() {
+        let graph_storage = GraphStorage::new(PgPool::connect("postgresql://test").await.unwrap());
         
         let constraints = graph_storage.extract_generic_constraints("Vec<String, Clone>");
         assert_eq!(constraints, vec!["String", "Clone"]);

@@ -564,11 +564,11 @@ pub struct IndexStats {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_query_builder() {
+    #[tokio::test]
+    async fn test_query_builder() {
         // Mock pool for testing
         // In real tests, this would use a test database
-        let pool = PgPool::connect("postgresql://test").expect("Test pool");
+        let pool = PgPool::connect("postgresql://test").await.expect("Test pool");
         let builder = GraphQueryBuilder::new(pool);
         
         let query = builder.query()

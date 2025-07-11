@@ -601,10 +601,8 @@ impl RagFormatter {
         }
         
         // Filter test code
-        if !self.config.include_test_code {
-            if element.name.contains("test") || element.attributes.iter().any(|attr| attr.contains("test")) {
-                return false;
-            }
+        if !self.config.include_test_code && (element.name.contains("test") || element.attributes.iter().any(|attr| attr.contains("test"))) {
+            return false;
         }
         
         true

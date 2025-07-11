@@ -51,7 +51,7 @@ pub fn format_as_markdown(project_ast: &ProjectAst) -> Result<String> {
     for file in &project_ast.files {
         markdown.push_str(&format!("- [{}](#{})\n", 
             file.relative_path.display(),
-            file.relative_path.to_string_lossy().replace('/', "").replace('.', "")
+            file.relative_path.to_string_lossy().replace(['/', '.'], "")
         ));
     }
     markdown.push('\n');
@@ -73,8 +73,8 @@ pub fn format_as_markdown(project_ast: &ProjectAst) -> Result<String> {
         if !file.elements.is_empty() {
             for element in &file.elements {
                 // Add element documentation
-                markdown.push_str(&format!("### {} `{}`\n\n", 
-                    format!("{:?}", element.element_type),
+                markdown.push_str(&format!("### {:?} `{}`\n\n", 
+                    element.element_type,
                     element.name
                 ));
                 

@@ -143,8 +143,8 @@ impl MigrationManager {
     fn extract_description(&self, content: &str) -> String {
         for line in content.lines() {
             let line = line.trim();
-            if line.starts_with("-- Description:") {
-                return line[15..].trim().to_string();
+            if let Some(stripped) = line.strip_prefix("-- Description:") {
+                return stripped.trim().to_string();
             } else if line.starts_with("--") && !line.starts_with("---") {
                 // Use first comment as description
                 return line[2..].trim().to_string();
@@ -403,8 +403,8 @@ mod tests {
     use tempfile::TempDir;
     use std::fs;
 
-    #[test]
-    fn test_parse_migration_filename() {
+    #[tokio::test]
+    async fn test_parse_migration_filename() {
         let temp_dir = TempDir::new().unwrap();
         let migration_path = temp_dir.path().join("001_initial_schema.sql");
         
@@ -425,8 +425,8 @@ mod tests {
         assert!(migration.up_sql.contains("CREATE TABLE test"));
     }
 
-    #[test]
-    fn test_split_migration_content() {
+    #[tokio::test]
+    async fn test_split_migration_content() {
         let manager = MigrationManager::new(
             PgPool::connect("postgresql://test").await.unwrap()
         );

@@ -125,14 +125,14 @@ impl GraphTraversal {
         let mut graph: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
         for dep in &all_deps {
             graph.entry(dep.from_element_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(dep.to_element_id);
         }
 
         // DFS to detect cycles
         for &node in graph.keys() {
             if !visited.contains(&node) {
-                if let Some(cycle) = self.dfs_detect_cycle(
+                if let Some(cycle) = Self::dfs_detect_cycle(
                     node, 
                     &graph, 
                     &mut visited, 
@@ -153,7 +153,6 @@ impl GraphTraversal {
 
     /// DFS helper for cycle detection.
     fn dfs_detect_cycle(
-        &self,
         node: Uuid,
         graph: &HashMap<Uuid, Vec<Uuid>>,
         visited: &mut HashSet<Uuid>,
@@ -167,7 +166,7 @@ impl GraphTraversal {
         if let Some(neighbors) = graph.get(&node) {
             for &neighbor in neighbors {
                 if !visited.contains(&neighbor) {
-                    if let Some(cycle) = self.dfs_detect_cycle(neighbor, graph, visited, rec_stack, path) {
+                    if let Some(cycle) = Self::dfs_detect_cycle(neighbor, graph, visited, rec_stack, path) {
                         return Some(cycle);
                     }
                 } else if rec_stack.contains(&neighbor) {
